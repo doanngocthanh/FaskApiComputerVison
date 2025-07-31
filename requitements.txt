@@ -1,0 +1,13 @@
+ultralytics
+fastapi
+werkzeug
+uvicorn
+python-multipart
+
+pyclipper
+shapely
+onnxruntime
+
+passlib
+pyjwt
+pydantic[email]
