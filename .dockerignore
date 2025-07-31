@@ -40,13 +40,13 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Models (these should be downloaded/mounted separately)
-*.pth
-*.pt
-*.onnx
-*.pb
-*.h5
-.local/share/models/
+# Models (comment out if you want to include pre-trained models in image)
+# *.pth
+# *.pt
+# *.onnx
+# *.pb
+# *.h5
+# .local/share/models/
 
 # Temporary files
 temp/

@@ -15,15 +15,11 @@ COPY requitements.txt requirements.txt
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Create necessary directories
-RUN mkdir -p .local/share/models/onnx && \
-    mkdir -p .local/share/models/pth && \
-    mkdir -p .local/share/models/pt && \
-    mkdir -p .local/share/database && \
-    mkdir -p temp
-
 # Copy application code (excluding files in .dockerignore)
 COPY . .
+
+# Create temp directory if not exists
+RUN mkdir -p temp
 
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash app && \
