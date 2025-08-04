@@ -4,10 +4,27 @@ werkzeug
 uvicorn
 python-multipart
 
+# OCR Dependencies
 pyclipper
 shapely
 onnxruntime
+paddlepaddle
+paddleocr
+easyocr
+pytesseract
+pillow
+opencv-python
+numpy
 
+# Authentication
 passlib
 pyjwt
 pydantic[email]
+bcrypt
+
+# Database
+sqlite3
+
+# Utility
+python-dotenv
+easyocr

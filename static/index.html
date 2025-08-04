@@ -1,0 +1,2681 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO + OCR Service - Simple Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background: #f8f9fa;
+            border: none;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .nav-tab.active {
+            background: white;
+            color: #2196F3;
+            border-bottom: 3px solid #2196F3;
+        }
+
+        .nav-tab:hover {
+            background: #e9ecef;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #4caf50, #8bc34a);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #f44336, #ff5722);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #ff9800, #ffc107);
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            margin: 0 10px;
+        }
+
+        .step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #ddd;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .step.active .step-number {
+            background: #2196F3;
+            color: white;
+        }
+
+        .step.completed .step-number {
+            background: #4caf50;
+            color: white;
+        }
+
+        .step-arrow {
+            margin: 0 10px;
+            color: #ddd;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+
+        .model-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .model-card h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .model-meta {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .language-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .language-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .language-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .detection-result {
+            background: #e3f2fd;
+            border: 1px solid #2196F3;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .ocr-result {
+            background: #f3e5f5;
+            border: 1px solid #9c27b0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .file-drop-zone {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .file-drop-zone:hover,
+        .file-drop-zone.dragover {
+            border-color: #2196F3;
+            background: #f8f9ff;
+        }
+
+        .file-drop-zone.has-file {
+            border-color: #4caf50;
+            background: #f1f8e9;
+        }
+
+        .code-block {
+            position: relative;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .code-block pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            margin: 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .code-block .server-url {
+            color: #48bb78;
+            font-weight: bold;
+        }
+
+        .code-block .model-id {
+            color: #ed8936;
+            font-weight: bold;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .copy-btn:hover {
+            background: #3182ce;
+        }
+
+        .api-example {
+            margin-top: 20px;
+        }
+
+        .api-example.active {
+            display: block;
+        }
+
+        .api-example h5 {
+            color: #2d3748;
+            margin: 25px 0 10px 0;
+            font-size: 16px;
+        }
+
+        .nav-tabs .nav-tab {
+            font-size: 14px;
+        }
+
+        /* Monitoring Stats CSS */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #007bff, #28a745, #17a2b8, #ffc107);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .stat-card h4 {
+            color: #495057;
+            font-size: 14px;
+            margin: 0 0 10px 0;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #007bff;
+            margin: 10px 0;
+            line-height: 1;
+        }
+
+        .stat-card small {
+            color: #6c757d;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .log-entry {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background: white;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .log-entry:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .log-header {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            background: #f8f9fa;
+            transition: background-color 0.3s ease;
+        }
+
+        .log-header:hover {
+            background: #e9ecef;
+        }
+
+        .log-details {
+            padding: 15px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+        }
+
+        /* iframe styling */
+        iframe {
+            background-color: white !important;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 YOLO + OCR Service</h1>
+            <p>Dịch vụ nhận diện đối tượng và OCR đa ngôn ngữ</p>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('upload')">📤 Upload Model</button>
+            <button class="nav-tab" onclick="showTab('detect')">🎯 Detection</button>
+            <button class="nav-tab" onclick="showTab('ocr')">📝 OCR Only</button>
+            <button class="nav-tab" onclick="showTab('combined')">🔍 Detection + OCR</button>
+            <button class="nav-tab" onclick="showTab('models')">📋 Quản lý Models</button>
+            <button class="nav-tab" onclick="showTab('api-docs')">📚 API Docs</button>
+            <button class="nav-tab" onclick="showTab('monitoring')">📊 Monitoring</button>
+        </div>
+
+        <div class="content">
+            <!-- Upload Tab -->
+            <div id="tab-upload" class="tab-content active">
+                <h3>Upload YOLO Model</h3>
+                
+                <div class="step-indicator">
+                    <div class="step active" id="step1">
+                        <div class="step-number">1</div>
+                        <span>Upload Model</span>
+                    </div>
+                    <div class="step-arrow">→</div>
+                    <div class="step" id="step2">
+                        <div class="step-number">2</div>
+                        <span>Test Sample</span>
+                    </div>
+                    <div class="step-arrow">→</div>
+                    <div class="step" id="step3">
+                        <div class="step-number">3</div>
+                        <span>Complete</span>
+                    </div>
+                </div>
+
+                <!-- Step 1: Upload Model -->
+                <div id="upload-step1">
+                    <form id="uploadModelForm">
+                        <div class="form-group">
+                            <label>YOLO Model File (.pt)</label>
+                            <div class="file-drop-zone" onclick="document.getElementById('modelFile').click()">
+                                <p>🔗 Click để chọn file model .pt</p>
+                                <input type="file" id="modelFile" accept=".pt" style="display: none;" required>
+                                <small id="modelFileName"></small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Tên Model</label>
+                            <input type="text" id="modelName" placeholder="VD: Face Detection Model" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Mô tả (tùy chọn)</label>
+                            <textarea id="modelDescription" rows="3" placeholder="Mô tả chức năng của model"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Confidence Threshold</label>
+                            <input type="number" id="confidenceThreshold" step="0.1" min="0" max="1" value="0.5">
+                        </div>
+
+                        <button type="submit" class="btn">Tiếp tục - Upload Model</button>
+                    </form>
+                </div>
+
+                <!-- Step 2: Test Sample -->
+                <div id="upload-step2" class="hidden">
+                    <div class="alert alert-success">
+                        <strong>✅ Bước 1 hoàn thành!</strong> Model đã được upload thành công.
+                    </div>
+                    
+                    <form id="testSampleForm">
+                        <input type="hidden" id="uploadedModelId">
+                        
+                        <div class="form-group">
+                            <label>Ảnh mẫu để test</label>
+                            <div class="file-drop-zone" onclick="document.getElementById('sampleImage').click()">
+                                <p>🖼️ Click để chọn ảnh mẫu</p>
+                                <input type="file" id="sampleImage" accept="image/*" style="display: none;" required>
+                                <small id="sampleFileName"></small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="autoGenerateClasses" checked>
+                                Tự động tạo tên class từ kết quả detection
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-success">Hoàn thành - Test & Finalize</button>
+                        <button type="button" class="btn btn-warning" onclick="resetUpload()">Reset & Bắt đầu lại</button>
+                    </form>
+                </div>
+
+                <!-- Loading -->
+                <div class="loading" id="uploadLoading">
+                    <div class="spinner"></div>
+                    <p id="uploadLoadingText">Đang xử lý...</p>
+                </div>
+
+                <!-- Results -->
+                <div class="result-box hidden" id="uploadResult"></div>
+            </div>
+
+            <!-- Detection Tab -->
+            <div id="tab-detect" class="tab-content">
+                <h3>YOLO Object Detection</h3>
+                
+                <form id="detectionForm">
+                    <div class="form-group">
+                        <label>Chọn Model</label>
+                        <select id="detectionModelSelect" required>
+                            <option value="">-- Chọn model để detection --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ảnh cần detect</label>
+                        <div class="file-drop-zone" onclick="document.getElementById('detectionImage').click()">
+                            <p>🖼️ Click để chọn ảnh</p>
+                            <input type="file" id="detectionImage" accept="image/*" style="display: none;" required>
+                            <small id="detectionImageName"></small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Confidence Threshold</label>
+                        <input type="number" id="detectionConfidence" step="0.1" min="0" max="1" value="0.5">
+                    </div>
+
+                    <button type="submit" class="btn">🎯 Chạy Detection</button>
+                </form>
+
+                <div class="loading" id="detectionLoading">
+                    <div class="spinner"></div>
+                    <p>Đang detection...</p>
+                </div>
+
+                <div class="result-box hidden" id="detectionResult"></div>
+            </div>
+
+            <!-- OCR Only Tab -->
+            <div id="tab-ocr" class="tab-content">
+                <h3>OCR Text Recognition</h3>
+                
+                <div class="form-group">
+                    <label>Chọn ngôn ngữ OCR</label>
+                    <div class="language-selector" id="languageSelector">
+                        <!-- Languages will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>OCR Engine</label>
+                    <select id="ocrEngine">
+                        <option value="easyocr">EasyOCR Simple (Ổn định)</option>
+                    </select>
+                    <small style="color: #666;">EasyOCR đã được tối ưu đơn giản cho độ ổn định cao</small>
+                </div>
+
+                <form id="ocrForm">
+                    <div class="form-group">
+                        <label>Ảnh cần OCR</label>
+                        <div class="file-drop-zone" onclick="document.getElementById('ocrImage').click()">
+                            <p>📝 Click để chọn ảnh có text</p>
+                            <input type="file" id="ocrImage" accept="image/*" style="display: none;" required>
+                            <small id="ocrImageName"></small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="returnBboxes" checked>
+                            Trả về tọa độ vùng text
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn">📝 Chạy OCR</button>
+                </form>
+
+                <div class="loading" id="ocrLoading">
+                    <div class="spinner"></div>
+                    <p>Đang OCR...</p>
+                </div>
+
+                <div class="result-box hidden" id="ocrResult"></div>
+            </div>
+
+            <!-- Combined Tab -->
+            <div id="tab-combined" class="tab-content">
+                <h3>Detection + OCR Combined</h3>
+                
+                <form id="combinedForm">
+                    <div class="form-group">
+                        <label>Chọn Model Detection</label>
+                        <select id="combinedModelSelect" required>
+                            <option value="">-- Chọn model để detection --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ảnh cần xử lý</label>
+                        <div class="file-drop-zone" onclick="document.getElementById('combinedImage').click()">
+                            <p>🔍 Click để chọn ảnh</p>
+                            <input type="file" id="combinedImage" accept="image/*" style="display: none;" required>
+                            <small id="combinedImageName"></small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Detection Confidence</label>
+                        <input type="number" id="combinedConfidence" step="0.1" min="0" max="1" value="0.5">
+                    </div>
+
+                    <div class="form-group">
+                        <label>OCR Crop Padding</label>
+                        <input type="number" id="cropPadding" value="5" min="0" max="50">
+                        <small>Số pixel mở rộng khi crop vùng để OCR</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>OCR Engine</label>
+                        <select id="combinedOcrEngine">
+                            <option value="easyocr">EasyOCR Simple (Ổn định)</option>
+                        </select>
+                        <small style="color: #666;">EasyOCR đã được tối ưu đơn giản cho độ ổn định cao</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="returnCroppedImages">
+                            Trả về ảnh các vùng đã crop
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-success">🔍 Chạy Detection + OCR</button>
+                </form>
+
+                <div class="loading" id="combinedLoading">
+                    <div class="spinner"></div>
+                    <p>Đang detection và OCR...</p>
+                </div>
+
+                <div class="result-box hidden" id="combinedResult"></div>
+            </div>
+
+            <!-- Models Management Tab -->
+            <div id="tab-models" class="tab-content">
+                <h3>Quản lý Models</h3>
+                
+                <button class="btn" onclick="loadModels()">🔄 Refresh Danh sách</button>
+                <button class="btn btn-warning" onclick="cleanupCache()">🗑️ Cleanup Cache</button>
+                
+                <div id="modelsList">
+                    <p>Đang tải danh sách models...</p>
+                </div>
+            </div>
+
+            <!-- API Documentation Tab -->
+            <div id="tab-api-docs" class="tab-content">
+                <h3>📚 API Documentation & Code Generator</h3>
+                
+                <div class="alert alert-warning">
+                    <strong>🚀 Hướng dẫn sử dụng API</strong><br>
+                    Sử dụng các examples dưới đây để tích hợp YOLO + OCR service vào ứng dụng của bạn.
+                </div>
+
+                <div class="form-group">
+                    <label>Server URL</label>
+                    <input type="text" id="serverUrl" value="http://localhost:8000" placeholder="http://your-server.com:8000">
+                </div>
+
+                <div class="form-group">
+                    <label>Chọn Model ID (để tạo code examples)</label>
+                    <select id="apiModelSelect">
+                        <option value="">-- Chọn model để tạo code --</option>
+                    </select>
+                    <button class="btn" onclick="loadModelsForAPI()">🔄 Refresh Models</button>
+                </div>
+
+                <!-- API Endpoints Overview -->
+                <div class="model-card">
+                    <h4>📡 Available API Endpoints</h4>
+                    <div style="font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                        <strong>Models Management:</strong><br>
+                        POST /api/v1/yolo-ocr/models/upload-step1 - Upload YOLO model<br>
+                        POST /api/v1/yolo-ocr/models/{model_id}/test-sample - Test with sample image<br>
+                        GET /api/v1/yolo-ocr/models/list - List all models<br>
+                        PUT /api/v1/yolo-ocr/models/{model_id}/update-class-names - Update class names<br>
+                        DELETE /api/v1/yolo-ocr/models/{model_id} - Delete model<br><br>
+                        
+                        <strong>Detection & OCR:</strong><br>
+                        POST /api/v1/yolo-ocr/models/{model_id}/detect - YOLO detection only<br>
+                        POST /api/v1/yolo-ocr/ocr/text-only - OCR only<br>
+                        POST /api/v1/yolo-ocr/models/{model_id}/detect-and-ocr - Combined detection + OCR<br>
+                        GET /api/v1/yolo-ocr/languages - Get supported languages<br>
+                    </div>
+                </div>
+
+                <!-- Code Examples Tabs -->
+                <div class="nav-tabs" style="margin-top: 20px;">
+                    <button class="nav-tab active" onclick="showApiExample('python')">🐍 Python</button>
+                    <button class="nav-tab" onclick="showApiExample('javascript')">🟨 JavaScript</button>
+                    <button class="nav-tab" onclick="showApiExample('curl')">🌐 cURL</button>
+                    <button class="nav-tab" onclick="showApiExample('postman')">📮 Postman</button>
+                </div>
+
+                <!-- Python Examples -->
+                <div id="api-python" class="api-example active">
+                    <h4>🐍 Python Examples</h4>
+                    
+                    <h5>1. Upload Model (2-Step Process)</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('python-upload')">📋 Copy</button>
+                        <pre id="python-upload"><code>import requests
+import json
+
+# Step 1: Upload model file
+def upload_model():
+    url = "<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/upload-step1"
+    
+    files = {
+        'file': open('your_model.pt', 'rb')
+    }
+    
+    data = {
+        'model_name': 'My YOLO Model',
+        'model_description': 'Description of my model',
+        'confidence_threshold': 0.5
+    }
+    
+    response = requests.post(url, files=files, data=data)
+    result = response.json()
+    
+    if response.status_code == 200:
+        model_id = result['model_id']
+        print(f"Model uploaded successfully: {model_id}")
+        return model_id
+    else:
+        print(f"Upload failed: {result}")
+        return None
+
+# Step 2: Test with sample image
+def test_sample(model_id):
+    url = f"<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/{model_id}/test-sample"
+    
+    files = {
+        'sample_image': open('sample.jpg', 'rb')
+    }
+    
+    data = {
+        'auto_generate_class_names': True
+    }
+    
+    response = requests.post(url, files=files, data=data)
+    result = response.json()
+    
+    if response.status_code == 200:
+        print(f"Model ready! Classes: {result['class_names']}")
+        print(f"Sample detections: {result['total_detections']}")
+    else:
+        print(f"Test failed: {result}")
+
+# Usage
+model_id = upload_model()
+if model_id:
+    test_sample(model_id)</code></pre>
+                    </div>
+
+                    <h5>2. Detection</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('python-detect')">📋 Copy</button>
+                        <pre id="python-detect"><code>def detect_objects(model_id, image_path):
+    url = f"<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/<span class="model-id">{model_id}</span>/detect"
+    
+    files = {
+        'file': open(image_path, 'rb')
+    }
+    
+    data = {
+        'confidence_threshold': 0.5
+    }
+    
+    response = requests.post(url, files=files, data=data)
+    result = response.json()
+    
+    if response.status_code == 200:
+        print(f"Found {result['total_detections']} objects:")
+        for i, detection in enumerate(result['detection_results']):
+            print(f"{i+1}. {detection['class_name']}: {detection['confidence']:.2f}")
+            print(f"   BBox: {detection['bbox']}")
+    else:
+        print(f"Detection failed: {result}")
+    
+    return result
+
+# Usage
+results = detect_objects("<span class="model-id">your-model-id</span>", "test_image.jpg")</code></pre>
+                    </div>
+
+                    <h5>3. Combined Detection + OCR</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('python-combined')">📋 Copy</button>
+                        <pre id="python-combined"><code>def detect_and_ocr(model_id, image_path):
+    url = f"<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/<span class="model-id">{model_id}</span>/detect-and-ocr"
+    
+    files = {
+        'file': open(image_path, 'rb')
+    }
+    
+    data = {
+        'languages': json.dumps(['en', 'vi']),  # English and Vietnamese
+        'confidence_threshold': 0.5,
+        'ocr_crop_padding': 5,
+        'return_cropped_images': False
+    }
+    
+    response = requests.post(url, files=files, data=data)
+    result = response.json()
+    
+    if response.status_code == 200:
+        print(f"Detections: {result['total_detections']}")
+        print(f"OCR Texts: {result['total_texts']}")
+        
+        # Show detection results
+        for i, detection in enumerate(result['detection_results']):
+            print(f"Detection {i+1}: {detection['class_name']} ({detection['confidence']:.2f})")
+        
+        # Show OCR results
+        for i, ocr in enumerate(result['ocr_results']):
+            print(f"Text {i+1}: '{ocr['text']}' ({ocr['confidence']:.2f})")
+    else:
+        print(f"Processing failed: {result}")
+    
+    return result
+
+# Usage
+results = detect_and_ocr("<span class="model-id">your-model-id</span>", "document.jpg")</code></pre>
+                    </div>
+                </div>
+
+                <!-- JavaScript Examples -->
+                <div id="api-javascript" class="api-example" style="display: none;">
+                    <h4>🟨 JavaScript Examples</h4>
+                    
+                    <h5>1. Upload Model (Browser)</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('js-upload')">📋 Copy</button>
+                        <pre id="js-upload"><code>// Step 1: Upload model
+async function uploadModel(modelFile, modelName) {
+    const formData = new FormData();
+    formData.append('file', modelFile);
+    formData.append('model_name', modelName);
+    formData.append('model_description', 'Uploaded via API');
+    formData.append('confidence_threshold', 0.5);
+    
+    try {
+        const response = await fetch('<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/upload-step1', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            console.log('Model uploaded:', result.model_id);
+            return result.model_id;
+        } else {
+            console.error('Upload failed:', result.detail);
+            return null;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        return null;
+    }
+}
+
+// Step 2: Test sample
+async function testSample(modelId, sampleFile) {
+    const formData = new FormData();
+    formData.append('sample_image', sampleFile);
+    formData.append('auto_generate_class_names', true);
+    
+    try {
+        const response = await fetch(`<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/${modelId}/test-sample`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            console.log('Model ready! Classes:', result.class_names);
+            return result;
+        } else {
+            console.error('Test failed:', result.detail);
+            return null;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        return null;
+    }
+}
+
+// Usage
+// const modelFile = document.getElementById('modelInput').files[0];
+// const sampleFile = document.getElementById('sampleInput').files[0];
+// const modelId = await uploadModel(modelFile, 'My Model');
+// if (modelId) await testSample(modelId, sampleFile);</code></pre>
+                    </div>
+
+                    <h5>2. Detection</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('js-detect')">📋 Copy</button>
+                        <pre id="js-detect"><code>async function detectObjects(modelId, imageFile) {
+    const formData = new FormData();
+    formData.append('file', imageFile);
+    formData.append('confidence_threshold', 0.5);
+    
+    try {
+        const response = await fetch(`<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/<span class="model-id">${modelId}</span>/detect`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            console.log(`Found ${result.total_detections} objects:`);
+            result.detection_results.forEach((detection, i) => {
+                console.log(`${i+1}. ${detection.class_name}: ${(detection.confidence * 100).toFixed(1)}%`);
+                console.log(`   BBox: [${detection.bbox.join(', ')}]`);
+            });
+            return result;
+        } else {
+            console.error('Detection failed:', result.detail);
+            return null;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        return null;
+    }
+}
+
+// Usage
+// const imageFile = document.getElementById('imageInput').files[0];
+// const results = await detectObjects('<span class="model-id">your-model-id</span>', imageFile);</code></pre>
+                    </div>
+
+                    <h5>3. Combined Detection + OCR</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('js-combined')">📋 Copy</button>
+                        <pre id="js-combined"><code>async function detectAndOCR(modelId, imageFile) {
+    const formData = new FormData();
+    formData.append('file', imageFile);
+    formData.append('languages', JSON.stringify(['en', 'vi']));
+    formData.append('confidence_threshold', 0.5);
+    formData.append('ocr_crop_padding', 5);
+    formData.append('return_cropped_images', false);
+    
+    try {
+        const response = await fetch(`<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/<span class="model-id">${modelId}</span>/detect-and-ocr`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            console.log(`Detections: ${result.total_detections}, Texts: ${result.total_texts}`);
+            
+            // Show detections
+            result.detection_results.forEach((detection, i) => {
+                console.log(`Detection ${i+1}: ${detection.class_name} (${(detection.confidence * 100).toFixed(1)}%)`);
+            });
+            
+            // Show OCR results
+            result.ocr_results.forEach((ocr, i) => {
+                console.log(`Text ${i+1}: '${ocr.text}' (${(ocr.confidence * 100).toFixed(1)}%)`);
+            });
+            
+            return result;
+        } else {
+            console.error('Processing failed:', result.detail);
+            return null;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        return null;
+    }
+}
+
+// Usage
+// const imageFile = document.getElementById('imageInput').files[0];
+// const results = await detectAndOCR('<span class="model-id">your-model-id</span>', imageFile);</code></pre>
+                    </div>
+                </div>
+
+                <!-- cURL Examples -->
+                <div id="api-curl" class="api-example" style="display: none;">
+                    <h4>🌐 cURL Examples</h4>
+                    
+                    <h5>1. Upload Model</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('curl-upload')">📋 Copy</button>
+                        <pre id="curl-upload"><code># Step 1: Upload model
+curl -X POST "<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/upload-step1" \
+  -F "file=@your_model.pt" \
+  -F "model_name=My YOLO Model" \
+  -F "model_description=Description of my model" \
+  -F "confidence_threshold=0.5"
+
+# Response will include model_id, use it for step 2
+
+# Step 2: Test sample (replace MODEL_ID with actual ID)
+curl -X POST "<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/MODEL_ID/test-sample" \
+  -F "sample_image=@sample.jpg" \
+  -F "auto_generate_class_names=true"</code></pre>
+                    </div>
+
+                    <h5>2. Detection</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('curl-detect')">📋 Copy</button>
+                        <pre id="curl-detect"><code># YOLO Detection
+curl -X POST "<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/<span class="model-id">MODEL_ID</span>/detect" \
+  -F "file=@test_image.jpg" \
+  -F "confidence_threshold=0.5"</code></pre>
+                    </div>
+
+                    <h5>3. OCR Only</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('curl-ocr')">📋 Copy</button>
+                        <pre id="curl-ocr"><code># OCR Only
+curl -X POST "<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/ocr/text-only" \
+  -F "file=@document.jpg" \
+  -F 'languages=["en","vi"]' \
+  -F "return_bboxes=true"</code></pre>
+                    </div>
+
+                    <h5>4. Combined Detection + OCR</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('curl-combined')">📋 Copy</button>
+                        <pre id="curl-combined"><code># Combined Detection + OCR
+curl -X POST "<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/<span class="model-id">MODEL_ID</span>/detect-and-ocr" \
+  -F "file=@document.jpg" \
+  -F 'languages=["en","vi"]' \
+  -F "confidence_threshold=0.5" \
+  -F "ocr_crop_padding=5" \
+  -F "return_cropped_images=false"</code></pre>
+                    </div>
+
+                    <h5>5. List Models</h5>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('curl-list')">📋 Copy</button>
+                        <pre id="curl-list"><code># List all models
+curl -X GET "<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/models/list"
+
+# Get supported languages
+curl -X GET "<span class="server-url">http://localhost:8000</span>/api/v1/yolo-ocr/languages"</code></pre>
+                    </div>
+                </div>
+
+                <!-- Postman Examples -->
+                <div id="api-postman" class="api-example" style="display: none;">
+                    <h4>📮 Postman Collection</h4>
+                    
+                    <div class="alert alert-success">
+                        <strong>🚀 Import vào Postman:</strong><br>
+                        Copy JSON collection dưới đây và import vào Postman để test APIs nhanh chóng.
+                    </div>
+
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode('postman-collection')">📋 Copy Collection</button>
+                        <pre id="postman-collection"><code id="postman-json">{
+  "info": {
+    "name": "YOLO + OCR Service API",
+    "description": "Complete API collection for YOLO detection and OCR service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "<span class="server-url">http://localhost:8000</span>"
+    },
+    {
+      "key": "model_id",
+      "value": "<span class="model-id">your-model-id</span>"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Upload Model (Step 1)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "your_model.pt"
+            },
+            {
+              "key": "model_name",
+              "value": "My YOLO Model"
+            },
+            {
+              "key": "model_description",
+              "value": "Description of my model"
+            },
+            {
+              "key": "confidence_threshold",
+              "value": "0.5"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/yolo-ocr/models/upload-step1",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "yolo-ocr", "models", "upload-step1"]
+        }
+      }
+    },
+    {
+      "name": "2. Test Sample (Step 2)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "sample_image",
+              "type": "file",
+              "src": "sample.jpg"
+            },
+            {
+              "key": "auto_generate_class_names",
+              "value": "true"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/yolo-ocr/models/{{model_id}}/test-sample",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "yolo-ocr", "models", "{{model_id}}", "test-sample"]
+        }
+      }
+    },
+    {
+      "name": "3. YOLO Detection",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "test_image.jpg"
+            },
+            {
+              "key": "confidence_threshold",
+              "value": "0.5"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/yolo-ocr/models/{{model_id}}/detect",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "yolo-ocr", "models", "{{model_id}}", "detect"]
+        }
+      }
+    },
+    {
+      "name": "4. OCR Only",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "document.jpg"
+            },
+            {
+              "key": "languages",
+              "value": "[\"en\",\"vi\"]"
+            },
+            {
+              "key": "return_bboxes",
+              "value": "true"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/yolo-ocr/ocr/text-only",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "yolo-ocr", "ocr", "text-only"]
+        }
+      }
+    },
+    {
+      "name": "5. Combined Detection + OCR",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "document.jpg"
+            },
+            {
+              "key": "languages",
+              "value": "[\"en\",\"vi\"]"
+            },
+            {
+              "key": "confidence_threshold",
+              "value": "0.5"
+            },
+            {
+              "key": "ocr_crop_padding",
+              "value": "5"
+            },
+            {
+              "key": "return_cropped_images",
+              "value": "false"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/yolo-ocr/models/{{model_id}}/detect-and-ocr",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "yolo-ocr", "models", "{{model_id}}", "detect-and-ocr"]
+        }
+      }
+    },
+    {
+      "name": "6. List Models",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/yolo-ocr/models/list",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "yolo-ocr", "models", "list"]
+        }
+      }
+    },
+    {
+      "name": "7. Get Supported Languages",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/yolo-ocr/languages",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "yolo-ocr", "languages"]
+        }
+      }
+    }
+  ]
+}</code></pre>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <strong>📝 Hướng dẫn sử dụng Postman:</strong><br>
+                        1. Copy JSON collection ở trên<br>
+                        2. Mở Postman → Import → Raw text → Paste → Import<br>
+                        3. Cập nhật variables: base_url và model_id<br>
+                        4. Test các endpoints theo thứ tự: Upload → Test Sample → Detection/OCR
+                    </div>
+                </div>
+
+                <!-- Response Examples -->
+                <div class="model-card" style="margin-top: 30px;">
+                    <h4>📤 Response Examples</h4>
+                    
+                    <h5>Detection Response:</h5>
+                    <div class="code-block">
+                        <pre><code>{
+  "status": "success",
+  "model_name": "My YOLO Model",
+  "processing_time_ms": 156,
+  "total_detections": 2,
+  "detection_results": [
+    {
+      "bbox": [100, 50, 200, 150],
+      "class_name": "person",
+      "confidence": 0.95,
+      "class_id": 0
+    },
+    {
+      "bbox": [300, 100, 400, 200],
+      "class_name": "car",
+      "confidence": 0.87,
+      "class_id": 1
+    }
+  ]
+}</code></pre>
+                    </div>
+
+                    <h5>Combined Detection + OCR Response:</h5>
+                    <div class="code-block">
+                        <pre><code>{
+  "status": "success",
+  "model_name": "My YOLO Model",
+  "languages_used": ["en", "vi"],
+  "processing_time_ms": 234,
+  "total_detections": 1,
+  "total_texts": 2,
+  "detection_results": [
+    {
+      "bbox": [10, 20, 300, 100],
+      "class_name": "document",
+      "confidence": 0.92,
+      "class_id": 0
+    }
+  ],
+  "ocr_results": [
+    {
+      "text": "Hello World",
+      "confidence": 0.98,
+      "bbox": [15, 25, 150, 45]
+    },
+    {
+      "text": "Xin chào",
+      "confidence": 0.94,
+      "bbox": [15, 50, 100, 70]
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1/yolo-ocr';
+        let selectedLanguages = ['en', 'vi'];
+        let currentStep = 1;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            setupFileHandlers();
+            loadLanguages();
+            loadModels();
+            loadModelsForAPI();
+            updateCodeExamples();
+        });
+
+        // File upload handlers
+        function setupFileHandlers() {
+            setupFileHandler('modelFile', 'modelFileName');
+            setupFileHandler('sampleImage', 'sampleFileName');
+            setupFileHandler('detectionImage', 'detectionImageName');
+            setupFileHandler('ocrImage', 'ocrImageName');
+            setupFileHandler('combinedImage', 'combinedImageName');
+        }
+
+        function setupFileHandler(inputId, displayId) {
+            const input = document.getElementById(inputId);
+            const display = document.getElementById(displayId);
+            const dropZone = input.parentElement;
+
+            input.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    display.textContent = this.files[0].name;
+                    dropZone.classList.add('has-file');
+                } else {
+                    display.textContent = '';
+                    dropZone.classList.remove('has-file');
+                }
+            });
+
+            // Drag and drop
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', function() {
+                this.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    input.files = files;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+        }
+
+        // Load supported languages
+        async function loadLanguages() {
+            try {
+                const response = await fetch(`${API_BASE}/languages`);
+                const data = await response.json();
+                
+                const selector = document.getElementById('languageSelector');
+                selector.innerHTML = '';
+                
+                for (const [code, name] of Object.entries(data.supported_languages)) {
+                    const item = document.createElement('div');
+                    item.className = 'language-item';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = code;
+                    checkbox.checked = selectedLanguages.includes(code);
+                    checkbox.addEventListener('change', updateSelectedLanguages);
+                    
+                    const label = document.createElement('label');
+                    label.textContent = `${name} (${code})`;
+                    label.style.margin = '0';
+                    label.style.fontSize = '14px';
+                    
+                    item.appendChild(checkbox);
+                    item.appendChild(label);
+                    selector.appendChild(item);
+                }
+            } catch (error) {
+                console.error('Error loading languages:', error);
+            }
+        }
+
+        function updateSelectedLanguages() {
+            const checkboxes = document.querySelectorAll('#languageSelector input[type="checkbox"]:checked');
+            selectedLanguages = Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        // Load models
+        async function loadModels() {
+            try {
+                const response = await fetch(`${API_BASE}/models/list`);
+                const data = await response.json();
+                
+                const container = document.getElementById('modelsList');
+                const detectionSelect = document.getElementById('detectionModelSelect');
+                const combinedSelect = document.getElementById('combinedModelSelect');
+                
+                // Clear selects
+                detectionSelect.innerHTML = '<option value="">-- Chọn model để detection --</option>';
+                combinedSelect.innerHTML = '<option value="">-- Chọn model để detection --</option>';
+                
+                if (data.models.length === 0) {
+                    container.innerHTML = '<div class="alert alert-warning">Chưa có model nào. Hãy upload model ở tab "Upload Model".</div>';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                
+                data.models.forEach(model => {
+                    // Add to models list
+                    const card = document.createElement('div');
+                    card.className = 'model-card';
+                    card.innerHTML = `
+                        <h4>${model.model_name}</h4>
+                        <div class="model-meta">
+                            ID: ${model.model_id}<br>
+                            Classes: ${model.class_count} | Uploaded: ${new Date(model.upload_time).toLocaleString()}<br>
+                            Sample detections: ${model.sample_detections}
+                        </div>
+                        <button class="btn btn-success" onclick="useModel('${model.model_id}')">Sử dụng</button>
+                        <button class="btn btn-warning" onclick="editModel('${model.model_id}')">Sửa tên class</button>
+                        <button class="btn btn-danger" onclick="deleteModel('${model.model_id}')">Xóa</button>
+                    `;
+                    container.appendChild(card);
+                    
+                    // Add to selects
+                    const option1 = new Option(model.model_name, model.model_id);
+                    const option2 = new Option(model.model_name, model.model_id);
+                    detectionSelect.add(option1);
+                    combinedSelect.add(option2);
+                });
+                
+            } catch (error) {
+                console.error('Error loading models:', error);
+                document.getElementById('modelsList').innerHTML = '<div class="alert alert-error">Lỗi khi tải danh sách models</div>';
+            }
+        }
+
+        // Model management functions
+        function useModel(modelId) {
+            document.getElementById('detectionModelSelect').value = modelId;
+            document.getElementById('combinedModelSelect').value = modelId;
+            showNotification('Model đã được chọn cho detection!', 'success');
+        }
+
+        async function deleteModel(modelId) {
+            if (!confirm('Bạn có chắc muốn xóa model này?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/models/${modelId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                showNotification(data.message, response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    loadModels();
+                }
+                
+            } catch (error) {
+                showNotification('Lỗi khi xóa model: ' + error.message, 'error');
+            }
+        }
+
+        async function editModel(modelId) {
+            const newClassNames = prompt('Nhập tên các class mới (JSON array):\nVí dụ: ["person", "car", "bicycle"]');
+            if (!newClassNames) return;
+            
+            try {
+                const formData = new FormData();
+                formData.append('class_names', newClassNames);
+                
+                const response = await fetch(`${API_BASE}/models/${modelId}/update-class-names`, {
+                    method: 'PUT',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                showNotification(data.message || 'Cập nhật thành công!', response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    loadModels();
+                }
+                
+            } catch (error) {
+                showNotification('Lỗi khi cập nhật: ' + error.message, 'error');
+            }
+        }
+
+        async function cleanupCache() {
+            try {
+                const response = await fetch(`${API_BASE}/cleanup`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                showNotification(data.message, 'success');
+                
+            } catch (error) {
+                showNotification('Lỗi khi cleanup: ' + error.message, 'error');
+            }
+        }
+
+        // Upload workflow
+        document.getElementById('uploadModelForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('file', document.getElementById('modelFile').files[0]);
+            formData.append('model_name', document.getElementById('modelName').value);
+            formData.append('model_description', document.getElementById('modelDescription').value);
+            formData.append('confidence_threshold', document.getElementById('confidenceThreshold').value);
+            
+            showLoading('uploadLoading', 'Đang upload model...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/models/upload-step1`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Move to step 2
+                    document.getElementById('uploadedModelId').value = data.model_id;
+                    document.getElementById('upload-step1').classList.add('hidden');
+                    document.getElementById('upload-step2').classList.remove('hidden');
+                    
+                    setStepActive(2);
+                    showNotification(`Model "${data.model_name}" đã upload thành công!`, 'success');
+                } else {
+                    showNotification(data.detail || 'Lỗi upload model', 'error');
+                }
+                
+            } catch (error) {
+                showNotification('Lỗi kết nối: ' + error.message, 'error');
+            } finally {
+                hideLoading('uploadLoading');
+            }
+        });
+
+        document.getElementById('testSampleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const modelId = document.getElementById('uploadedModelId').value;
+            const formData = new FormData();
+            formData.append('sample_image', document.getElementById('sampleImage').files[0]);
+            formData.append('auto_generate_class_names', document.getElementById('autoGenerateClasses').checked);
+            
+            showLoading('uploadLoading', 'Đang test sample và tạo class names...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/models/${modelId}/test-sample`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    setStepActive(3);
+                    showUploadResult(data);
+                    resetUploadForm();
+                    loadModels();
+                } else {
+                    showNotification(data.detail || 'Lỗi test sample', 'error');
+                }
+                
+            } catch (error) {
+                showNotification('Lỗi kết nối: ' + error.message, 'error');
+            } finally {
+                hideLoading('uploadLoading');
+            }
+        });
+
+        function showUploadResult(data) {
+            const resultBox = document.getElementById('uploadResult');
+            resultBox.innerHTML = `
+                <div class="alert alert-success">
+                    <h4>🎉 Upload Model Hoàn Thành!</h4>
+                    <p><strong>Model:</strong> ${data.model_name}</p>
+                    <p><strong>Total classes:</strong> ${data.total_classes}</p>
+                    <p><strong>Detected classes:</strong> ${data.detected_classes}</p>
+                    <p><strong>Sample detections:</strong> ${data.total_detections}</p>
+                </div>
+                
+                <h5>📋 Class Names:</h5>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                    ${data.class_names.map((name, idx) => `<span style="display: inline-block; background: #e3f2fd; padding: 3px 8px; margin: 2px; border-radius: 3px; font-size: 12px;">${idx}: ${name}</span>`).join('')}
+                </div>
+                
+                ${data.sample_detection_results.length > 0 ? `
+                    <h5>🎯 Sample Detection Results:</h5>
+                    ${data.sample_detection_results.map((det, i) => {
+                        const centerX = Math.round((det.bbox[0] + det.bbox[2]) / 2);
+                        const centerY = Math.round((det.bbox[1] + det.bbox[3]) / 2);
+                        const width = det.bbox[2] - det.bbox[0];
+                        const height = det.bbox[3] - det.bbox[1];
+                        return `
+                        <div class="detection-result">
+                            <strong>Detection ${i + 1}:</strong> ${det.class_name} (${(det.confidence * 100).toFixed(1)}%)<br>
+                            <small>📍 Center: (${centerX}, ${centerY}) | Size: ${width}×${height}<br>
+                            BBox: [${det.bbox.join(', ')}]</small>
+                        </div>
+                        `;
+                    }).join('')}
+                ` : ''}
+                
+                <p style="margin-top: 15px;">✅ Model đã sẵn sàng sử dụng. Chuyển sang tab "Detection" hoặc "Detection + OCR" để sử dụng.</p>
+            `;
+            resultBox.classList.remove('hidden');
+        }
+
+        function resetUpload() {
+            document.getElementById('upload-step1').classList.remove('hidden');
+            document.getElementById('upload-step2').classList.add('hidden');
+            document.getElementById('uploadResult').classList.add('hidden');
+            setStepActive(1);
+            resetUploadForm();
+        }
+
+        function resetUploadForm() {
+            document.getElementById('uploadModelForm').reset();
+            document.getElementById('testSampleForm').reset();
+            document.querySelectorAll('.file-drop-zone').forEach(zone => {
+                zone.classList.remove('has-file');
+            });
+            document.querySelectorAll('[id$="FileName"]').forEach(display => {
+                display.textContent = '';
+            });
+        }
+
+        function setStepActive(stepNumber) {
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < stepNumber) {
+                    step.classList.add('completed');
+                } else if (index + 1 === stepNumber) {
+                    step.classList.add('active');
+                }
+            });
+        }
+
+        // Detection form
+        document.getElementById('detectionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const modelId = document.getElementById('detectionModelSelect').value;
+            const formData = new FormData();
+            formData.append('file', document.getElementById('detectionImage').files[0]);
+            formData.append('confidence_threshold', document.getElementById('detectionConfidence').value);
+            
+            showLoading('detectionLoading', 'Đang detection...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/models/${modelId}/detect`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showDetectionResult(data);
+                } else {
+                    showNotification(data.detail || 'Lỗi detection', 'error');
+                }
+                
+            } catch (error) {
+                showNotification('Lỗi kết nối: ' + error.message, 'error');
+            } finally {
+                hideLoading('detectionLoading');
+            }
+        });
+
+        function showDetectionResult(data) {
+            const resultBox = document.getElementById('detectionResult');
+            resultBox.innerHTML = `
+                <h4>🎯 Detection Results</h4>
+                <p><strong>Model:</strong> ${data.model_name}</p>
+                <p><strong>Processing time:</strong> ${data.processing_time_ms}ms</p>
+                <p><strong>Total detections:</strong> ${data.total_detections}</p>
+                
+                ${data.detection_results.length > 0 ? `
+                    <h5>Detected Objects:</h5>
+                    ${data.detection_results.map((det, i) => {
+                        const centerX = Math.round((det.bbox[0] + det.bbox[2]) / 2);
+                        const centerY = Math.round((det.bbox[1] + det.bbox[3]) / 2);
+                        const width = det.bbox[2] - det.bbox[0];
+                        const height = det.bbox[3] - det.bbox[1];
+                        return `
+                        <div class="detection-result">
+                            <strong>${i + 1}.</strong> ${det.class_name} 
+                            <span style="color: #666;">(Confidence: ${(det.confidence * 100).toFixed(1)}%)</span><br>
+                            <small>📍 Center: (${centerX}, ${centerY}) | Size: ${width}×${height}<br>
+                            BBox: [${det.bbox.join(', ')}]</small>
+                        </div>
+                        `;
+                    }).join('')}
+                ` : '<p>Không phát hiện object nào.</p>'}
+            `;
+            resultBox.classList.remove('hidden');
+        }
+
+        // OCR form
+        document.getElementById('ocrForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('ocrImage');
+            
+            // Validate file selection
+            if (!fileInput.files[0]) {
+                showNotification('❌ Vui lòng chọn ảnh để OCR', 'error');
+                return;
+            }
+            
+            // Validate languages selection
+            if (selectedLanguages.length === 0) {
+                showNotification('❌ Vui lòng chọn ít nhất một ngôn ngữ', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('languages', JSON.stringify(selectedLanguages));
+            formData.append('return_bboxes', document.getElementById('returnBboxes').checked);
+            
+            // Debug logging
+            console.log('🔍 OCR Request Debug:');
+            console.log('- File:', fileInput.files[0].name, fileInput.files[0].type, 'Size:', fileInput.files[0].size);
+            console.log('- Languages:', selectedLanguages);
+            console.log('- Languages JSON:', JSON.stringify(selectedLanguages));
+            console.log('- Return bboxes:', document.getElementById('returnBboxes').checked);
+            
+            showLoading('ocrLoading', 'Đang OCR...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/ocr/text-only`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showOCRResult(data);
+                } else {
+                    console.error('OCR API Error:', data);
+                    showNotification(`❌ Lỗi OCR: ${data.detail || 'Unknown error'}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('OCR Network Error:', error);
+                showNotification('❌ Lỗi kết nối: ' + error.message, 'error');
+            } finally {
+                hideLoading('ocrLoading');
+            }
+        });
+
+        function showOCRResult(data) {
+            const resultBox = document.getElementById('ocrResult');
+            resultBox.innerHTML = `
+                <h4>📝 OCR Results</h4>
+                <p><strong>Languages:</strong> ${data.languages_used.join(', ')}</p>
+                <p><strong>Processing time:</strong> ${data.processing_time_ms}ms</p>
+                <p><strong>Total texts:</strong> ${data.total_texts}</p>
+                
+                ${data.full_text ? `
+                    <h5>📄 Full Text:</h5>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; white-space: pre-wrap; border: 1px solid #dee2e6; margin-bottom: 15px;">${data.full_text}</div>
+                ` : ''}
+                
+                ${data.ocr_results.length > 0 ? `
+                    <h5>📝 Individual Texts:</h5>
+                    ${data.ocr_results.map((ocr, i) => `
+                        <div class="ocr-result">
+                            <strong>${i + 1}.</strong> "${ocr.text}"
+                            <span style="color: #666;">(Confidence: ${(ocr.confidence * 100).toFixed(1)}%)</span>
+                            ${ocr.bbox ? `<br><small>BBox: [${ocr.bbox.join(', ')}]</small>` : ''}
+                        </div>
+                    `).join('')}
+                ` : '<p>Không nhận dạng được text nào.</p>'}
+            `;
+            resultBox.classList.remove('hidden');
+        }
+
+        // Combined form
+        document.getElementById('combinedForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const modelId = document.getElementById('combinedModelSelect').value;
+            const fileInput = document.getElementById('combinedImage');
+            
+            // Validate inputs
+            if (!modelId) {
+                showNotification('❌ Vui lòng chọn model detection', 'error');
+                return;
+            }
+            
+            if (!fileInput.files[0]) {
+                showNotification('❌ Vui lòng chọn ảnh để xử lý', 'error');
+                return;
+            }
+            
+            if (selectedLanguages.length === 0) {
+                showNotification('❌ Vui lòng chọn ít nhất một ngôn ngữ OCR', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('languages', JSON.stringify(selectedLanguages));
+            formData.append('confidence_threshold', document.getElementById('combinedConfidence').value);
+            formData.append('ocr_crop_padding', document.getElementById('cropPadding').value);
+            formData.append('return_cropped_images', document.getElementById('returnCroppedImages').checked);
+            
+            // Debug logging
+            console.log('🔍 Combined Detection+OCR Request Debug:');
+            console.log('- Model ID:', modelId);
+            console.log('- File:', fileInput.files[0].name, fileInput.files[0].type, 'Size:', fileInput.files[0].size);
+            console.log('- Languages:', selectedLanguages);
+            console.log('- Languages JSON:', JSON.stringify(selectedLanguages));
+            console.log('- Confidence:', document.getElementById('combinedConfidence').value);
+            console.log('- Crop padding:', document.getElementById('cropPadding').value);
+            console.log('- Return cropped:', document.getElementById('returnCroppedImages').checked);
+            
+            showLoading('combinedLoading', 'Đang detection và OCR...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/models/${modelId}/detect-and-ocr`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showCombinedResult(data);
+                } else {
+                    console.error('Combined API Error:', data);
+                    showNotification(`❌ Lỗi processing: ${data.detail || 'Unknown error'}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Combined Network Error:', error);
+                showNotification('❌ Lỗi kết nối: ' + error.message, 'error');
+            } finally {
+                hideLoading('combinedLoading');
+            }
+        });
+
+        function showCombinedResult(data) {
+            const resultBox = document.getElementById('combinedResult');
+            let html = `
+                <h4>🔍 Combined Detection + OCR Results</h4>
+                <p><strong>Model:</strong> ${data.model_name}</p>
+                <p><strong>Languages:</strong> ${data.languages_used.join(', ')}</p>
+                <p><strong>Processing time:</strong> ${data.processing_time_ms}ms</p>
+                <p><strong>Detections:</strong> ${data.total_detections} | <strong>Texts:</strong> ${data.total_texts}</p>
+            `;
+
+            if (data.detection_results.length > 0) {
+                html += `
+                    <h5>🎯 Detections:</h5>
+                    ${data.detection_results.map((det, i) => {
+                        const centerX = Math.round((det.bbox[0] + det.bbox[2]) / 2);
+                        const centerY = Math.round((det.bbox[1] + det.bbox[3]) / 2);
+                        const width = det.bbox[2] - det.bbox[0];
+                        const height = det.bbox[3] - det.bbox[1];
+                        return `
+                        <div class="detection-result">
+                            <strong>${i + 1}.</strong> ${det.class_name} 
+                            <span style="color: #666;">(Confidence: ${(det.confidence * 100).toFixed(1)}%)</span><br>
+                            <small>📍 Center: (${centerX}, ${centerY}) | Size: ${width}×${height}<br>
+                            BBox: [${det.bbox.join(', ')}]</small>
+                        </div>
+                        `;
+                    }).join('')}
+                `;
+            }
+
+            if (data.ocr_results.length > 0) {
+                html += `
+                    <h5>📝 OCR Results:</h5>
+                    ${data.ocr_results.map((ocr, i) => `
+                        <div class="ocr-result">
+                            <strong>${i + 1}.</strong> "${ocr.text}"
+                            <span style="color: #666;">(${(ocr.confidence * 100).toFixed(1)}%)</span>
+                        </div>
+                    `).join('')}
+                `;
+            }
+
+            if (data.cropped_images && data.cropped_images.length > 0) {
+                html += `
+                    <h5>🖼️ Cropped Images:</h5>
+                    ${data.cropped_images.map((img, i) => `
+                        <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            <strong>${img.class_name} (Detection ${img.detection_index + 1}):</strong><br>
+                            <img src="data:image/jpeg;base64,${img.image_base64}" style="max-width: 300px; border: 1px solid #ccc; border-radius: 5px; margin-top: 5px;">
+                        </div>
+                    `).join('')}
+                `;
+            }
+
+            resultBox.innerHTML = html;
+            resultBox.classList.remove('hidden');
+        }
+
+        // Utility functions
+        function showLoading(loadingId, text) {
+            document.getElementById(loadingId).style.display = 'block';
+            const textElement = document.querySelector(`#${loadingId} p`);
+            if (textElement) textElement.textContent = text;
+        }
+
+        function hideLoading(loadingId) {
+            document.getElementById(loadingId).style.display = 'none';
+        }
+
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type}`;
+            notification.textContent = message;
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.zIndex = '9999';
+            notification.style.maxWidth = '400px';
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+
+        // API Documentation Functions
+        function showApiExample(language) {
+            // Hide all examples
+            document.querySelectorAll('.api-example').forEach(example => {
+                example.style.display = 'none';
+            });
+            
+            // Remove active class from tabs
+            document.querySelectorAll('#tab-api-docs .nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected example
+            document.getElementById('api-' + language).style.display = 'block';
+            
+            // Set active tab
+            event.target.classList.add('active');
+        }
+
+        async function loadModelsForAPI() {
+            try {
+                const response = await fetch(`${API_BASE}/models/list`);
+                const data = await response.json();
+                
+                const select = document.getElementById('apiModelSelect');
+                select.innerHTML = '<option value="">-- Chọn model để tạo code --</option>';
+                
+                data.models.forEach(model => {
+                    const option = new Option(model.model_name, model.model_id);
+                    select.add(option);
+                });
+                
+                // Auto-select first model if available
+                if (data.models.length > 0) {
+                    select.value = data.models[0].model_id;
+                    updateCodeExamples();
+                }
+                
+            } catch (error) {
+                console.error('Error loading models for API:', error);
+            }
+        }
+
+        function updateCodeExamples() {
+            const serverUrl = document.getElementById('serverUrl').value || 'http://localhost:8000';
+            const modelId = document.getElementById('apiModelSelect').value || 'your-model-id';
+            
+            // Update all server URLs
+            document.querySelectorAll('.server-url').forEach(element => {
+                element.textContent = serverUrl;
+            });
+            
+            // Update all model IDs
+            document.querySelectorAll('.model-id').forEach(element => {
+                element.textContent = modelId;
+            });
+        }
+
+        // Event listeners for API docs
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update examples when server URL changes
+            const serverUrlInput = document.getElementById('serverUrl');
+            if (serverUrlInput) {
+                serverUrlInput.addEventListener('input', updateCodeExamples);
+            }
+            
+            // Update examples when model changes
+            const modelSelect = document.getElementById('apiModelSelect');
+            if (modelSelect) {
+                modelSelect.addEventListener('change', updateCodeExamples);
+            }
+        });
+
+        function copyCode(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent || element.innerText;
+            
+            // Create temporary textarea to copy text
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Show notification
+            showNotification('Code copied to clipboard!', 'success');
+        }
+
+        // Auto-update code examples when tab becomes active
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById('tab-' + tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Update API examples if API docs tab is selected
+            if (tabName === 'api-docs') {
+                setTimeout(() => {
+                    loadModelsForAPI();
+                    updateCodeExamples();
+                }, 100);
+            }
+            
+            // Load monitoring stats if monitoring tab is selected
+            if (tabName === 'monitoring') {
+                setTimeout(() => {
+                    loadMonitoringStats('today');
+                }, 100);
+            }
+        }
+    </script>
+
+    <!-- Monitoring Tab -->
+    <div id="tab-monitoring" class="tab-content">
+            <h2>📊 System Monitoring</h2>
+            <p>Real-time monitoring và thống kê cho OCR Service</p>
+            
+            <!-- Quick Stats -->
+            <div class="stats-container">
+                <div class="stat-card" id="totalRequests">
+                    <h4>📊 Total Requests</h4>
+                    <div class="stat-value">-</div>
+                    <small>Today</small>
+                </div>
+                <div class="stat-card" id="successRate">
+                    <h4>✅ Success Rate</h4>
+                    <div class="stat-value">-</div>
+                    <small>Percentage</small>
+                </div>
+                <div class="stat-card" id="avgProcessingTime">
+                    <h4>⚡ Avg Time</h4>
+                    <div class="stat-value">-</div>
+                    <small>Milliseconds</small>
+                </div>
+                <div class="stat-card" id="errorCount">
+                    <h4>❌ Errors</h4>
+                    <div class="stat-value">-</div>
+                    <small>Today</small>
+                </div>
+            </div>
+            
+            <!-- Controls -->
+            <div style="display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap;">
+                <button class="btn" onclick="loadMonitoringStats('today')" style="background: #007bff;">📅 Today</button>
+                <button class="btn" onclick="loadMonitoringStats('week')" style="background: #28a745;">📆 Week</button>
+                <button class="btn" onclick="loadMonitoringStats('month')" style="background: #17a2b8;">🗓️ Month</button>
+                <button class="btn" onclick="showDetailedLogs()" style="background: #e83e8c;">📋 Detailed Logs</button>
+                <button class="btn" onclick="openFullMonitoring()" style="background: #6f42c1;">🚀 Full Dashboard</button>
+                <button class="btn" onclick="refreshMonitoring()" style="background: #fd7e14;">🔄 Refresh</button>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="form-group">
+                <h3>📈 Quick Stats</h3>
+                <div id="monitoringResults" class="results">
+                    <div style="text-align: center; padding: 40px; color: #999;">
+                        Click "Today", "Week", or "Month" để xem thống kê
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Detailed Logs Section -->
+            <div class="form-group" id="detailedLogsSection" style="display: none;">
+                <h3>📋 Chi tiết Request/Response Logs</h3>
+                
+                <!-- Log Filters -->
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <select id="logEndpointFilter" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                        <option value="">All Endpoints</option>
+                        <option value="/detect">Detection</option>
+                        <option value="/ocr">OCR Only</option>
+                        <option value="/detect-and-ocr">Detection + OCR</option>
+                        <option value="/upload">Upload</option>
+                    </select>
+                    
+                    <select id="logSuccessFilter" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                        <option value="">All Status</option>
+                        <option value="true">Success Only</option>
+                        <option value="false">Errors Only</option>
+                    </select>
+                    
+                    <button class="btn" onclick="loadDetailedLogs()" style="background: #007bff; padding: 8px 16px;">🔍 Filter</button>
+                    <button class="btn" onclick="exportLogs()" style="background: #28a745; padding: 8px 16px;">📥 Export</button>
+                </div>
+                
+                <div id="detailedLogsResults" class="results">
+                    <!-- Logs will be populated here -->
+                </div>
+                
+                <!-- Pagination -->
+                <div id="logsPagination" style="text-align: center; margin-top: 20px;">
+                    <!-- Pagination will be populated here -->
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="form-group">
+                <h3>📈 Quick Stats</h3>
+                <div id="monitoringResults" class="results">
+                    <div style="text-align: center; padding: 40px; color: #999;">
+                        Click "Today", "Week", or "Month" để xem thống kê
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Status -->
+            <div class="form-group">
+                <h3>🔧 System Status</h3>
+                <div id="systemStatus" class="results">
+                    <div style="padding: 15px; background: #d4edda; border-radius: 8px; border: 1px solid #c3e6cb; color: #155724;">
+                        <strong>✅ OCR Service Status:</strong> Running<br>
+                        <strong>📊 Logging:</strong> Active<br>
+                        <strong>🗃️ Database:</strong> Connected<br>
+                        <strong>⏰ Last Check:</strong> <span id="lastStatusCheck">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        </div>
+
+        <!-- Monitoring Functions -->
+        <script>
+            // Monitoring functions
+            async function loadMonitoringStats(period = 'today') {
+                try {
+                    showNotification('🔄 Đang tải thống kê...', 'info');
+                    
+                    const response = await fetch(`/api/v1/monitoring/statistics?period=${period}`);
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        displayMonitoringStats(data);
+                        showNotification('✅ Đã tải thống kê thành công', 'success');
+                    } else {
+                        throw new Error(data.detail || 'Failed to load statistics');
+                    }
+                } catch (error) {
+                    showNotification('❌ Lỗi tải thống kê: ' + error.message, 'error');
+                    console.error('Monitoring error:', error);
+                }
+            }
+            
+            function displayMonitoringStats(stats) {
+                // Update quick stats cards
+                document.querySelector('#totalRequests .stat-value').textContent = stats.total_requests || 0;
+                document.querySelector('#successRate .stat-value').textContent = (stats.success_rate || 0) + '%';
+                document.querySelector('#avgProcessingTime .stat-value').textContent = Math.round(stats.average_processing_time_ms || 0) + 'ms';
+                document.querySelector('#errorCount .stat-value').textContent = stats.failed_requests || 0;
+                
+                // Update detailed results
+                const resultsDiv = document.getElementById('monitoringResults');
+                resultsDiv.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                        <div>
+                            <h4>🔥 Top Endpoints</h4>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-family: monospace;">
+                                ${Object.entries(stats.top_endpoints || {}).map(([endpoint, count]) => 
+                                    `<div style="margin: 5px 0;">${endpoint}: <strong>${count}</strong> requests</div>`
+                                ).join('') || '<div>Không có dữ liệu</div>'}
+                            </div>
+                        </div>
+                        <div>
+                            <h4>🌍 Language Usage</h4>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-family: monospace;">
+                                ${Object.entries(stats.language_usage || {}).map(([lang, count]) => 
+                                    `<div style="margin: 5px 0;">${lang}: <strong>${count}</strong> requests</div>`
+                                ).join('') || '<div>Không có dữ liệu</div>'}
+                            </div>
+                        </div>
+                        ${Object.keys(stats.error_types || {}).length > 0 ? `
+                        <div>
+                            <h4>⚠️ Error Types</h4>
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; font-family: monospace;">
+                                ${Object.entries(stats.error_types || {}).map(([error, count]) => 
+                                    `<div style="margin: 5px 0;">${error}: <strong>${count}</strong> times</div>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div style="margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 8px;">
+                        <strong>📊 Summary:</strong> ${stats.total_requests} total requests trong ${stats.period}, 
+                        ${stats.success_rate}% success rate, 
+                        avg processing time: ${Math.round(stats.average_processing_time_ms || 0)}ms
+                    </div>
+                `;
+            }
+            
+            function openFullMonitoring() {
+                // Open full monitoring dashboard in new tab
+                window.open('/api/v1/monitoring/', '_blank');
+            }
+            
+            function refreshMonitoring() {
+                // Update system status
+                document.getElementById('lastStatusCheck').textContent = new Date().toLocaleString();
+                
+                // Reload current stats
+                loadMonitoringStats('today');
+            }
+            
+            // Auto-refresh monitoring every 30 seconds when tab is active
+            let monitoringInterval;
+            
+            function startMonitoringAutoRefresh() {
+                monitoringInterval = setInterval(() => {
+                    const activeTab = document.querySelector('.tab-content.active');
+                    if (activeTab && activeTab.id === 'tab-monitoring') {
+                        refreshMonitoring();
+                    }
+                }, 30000);
+            }
+            
+            function stopMonitoringAutoRefresh() {
+                if (monitoringInterval) {
+                    clearInterval(monitoringInterval);
+                }
+            }
+            
+            // Start auto-refresh when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                startMonitoringAutoRefresh();
+                // Set initial status check time
+                document.getElementById('lastStatusCheck').textContent = new Date().toLocaleString();
+            });
+            
+            // Detailed Logs Functions
+            let currentLogsPage = 1;
+            
+            function showDetailedLogs() {
+                // Hide stats section, show logs section
+                document.getElementById('monitoringResults').style.display = 'none';
+                document.getElementById('detailedLogsSection').style.display = 'block';
+                
+                // Load first page of logs
+                loadDetailedLogs();
+            }
+            
+            function hideDetailedLogs() {
+                // Show stats section, hide logs section
+                document.getElementById('monitoringResults').style.display = 'block';
+                document.getElementById('detailedLogsSection').style.display = 'none';
+            }
+            
+            async function loadDetailedLogs(page = 1) {
+                try {
+                    showNotification('🔄 Đang tải detailed logs...', 'info');
+                    
+                    const endpoint = document.getElementById('logEndpointFilter').value;
+                    const success = document.getElementById('logSuccessFilter').value;
+                    
+                    let url = `/api/v1/monitoring/logs?page=${page}&limit=20`;
+                    if (endpoint) url += `&endpoint=${encodeURIComponent(endpoint)}`;
+                    if (success) url += `&success=${success}`;
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        displayDetailedLogs(data);
+                        currentLogsPage = page;
+                        showNotification('✅ Đã tải logs thành công', 'success');
+                    } else {
+                        throw new Error(data.detail || 'Failed to load logs');
+                    }
+                } catch (error) {
+                    showNotification('❌ Lỗi tải logs: ' + error.message, 'error');
+                    console.error('Logs error:', error);
+                }
+            }
+            
+            function displayDetailedLogs(data) {
+                const resultsDiv = document.getElementById('detailedLogsResults');
+                
+                if (!data.logs || data.logs.length === 0) {
+                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Không có log nào được tìm thấy.</div>';
+                    return;
+                }
+                
+                let html = `
+                    <div style="margin-bottom: 15px;">
+                        <strong>📊 Showing ${data.logs.length} logs (Page ${data.pagination.current_page} of ${data.pagination.total_pages})</strong>
+                        <span style="float: right;">Total: ${data.pagination.total_count} logs</span>
+                    </div>
+                    <div class="logs-container">
+                `;
+                
+                data.logs.forEach((log, index) => {
+                    const statusIcon = log.success ? '✅' : '❌';
+                    const statusClass = log.success ? 'success' : 'error';
+                    
+                    html += `
+                        <div class="log-entry" style="border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; background: ${log.success ? '#f8fff8' : '#fff8f8'};">
+                            <div class="log-header" style="padding: 15px; border-bottom: 1px solid #eee; cursor: pointer;" onclick="toggleLogDetails('${log.id}')">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong>${statusIcon} ${log.endpoint}</strong>
+                                        <span style="color: #666; margin-left: 10px;">${log.method}</span>
+                                        ${log.model_id ? `<span style="background: #e3f2fd; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-left: 10px;">Model: ${log.model_id.substring(0, 8)}...</span>` : ''}
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div><strong>${log.processing_time_ms}ms</strong></div>
+                                        <small>${log.formatted_time}</small>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px;">
+                                    ${log.total_detections > 0 ? `<span style="background: #e8f5e8; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-right: 5px;">🎯 ${log.total_detections} detections</span>` : ''}
+                                    ${log.total_texts > 0 ? `<span style="background: #fff3cd; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-right: 5px;">📝 ${log.total_texts} texts</span>` : ''}
+                                    ${log.file_size > 0 ? `<span style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-right: 5px;">📁 ${(log.file_size / 1024).toFixed(1)}KB</span>` : ''}
+                                    ${!log.success && log.error_message ? `<span style="background: #f8d7da; padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #721c24;">❌ ${log.error_message}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="log-details" id="details-${log.id}" style="display: none; padding: 15px; background: #f8f9fa;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    <div>
+                                        <h5>📥 Request Details</h5>
+                                        <div style="background: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+                                            <strong>IP:</strong> ${log.ip_address}<br>
+                                            <strong>User Agent:</strong> ${log.user_agent ? log.user_agent.substring(0, 50) + '...' : 'N/A'}<br>
+                                            <strong>Languages:</strong> ${log.languages ? log.languages.join(', ') : 'N/A'}<br>
+                                            <strong>Confidence:</strong> ${log.confidence_threshold || 'N/A'}<br>
+                                            ${log.request_body && Object.keys(log.request_body).length > 0 ? 
+                                                `<strong>Request Body:</strong><br><pre style="white-space: pre-wrap; word-break: break-all;">${JSON.stringify(log.request_body, null, 2)}</pre>` : ''}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h5>📤 Response Details</h5>
+                                        <div style="background: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">
+                                            ${log.response_body && Object.keys(log.response_body).length > 0 ? 
+                                                `<pre style="white-space: pre-wrap; word-break: break-all;">${JSON.stringify(log.response_body, null, 2)}</pre>` : 
+                                                '<em>No response body</em>'}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                ${log.ocr_results && log.ocr_results.length > 0 ? `
+                                <div style="margin-top: 15px;">
+                                    <h5>📝 OCR Results</h5>
+                                    <div style="background: white; padding: 10px; border-radius: 4px; max-height: 150px; overflow-y: auto;">
+                                        ${log.ocr_results.map((ocr, i) => 
+                                            `<div style="margin-bottom: 5px;"><strong>${i+1}:</strong> "${ocr.text}" (${(ocr.confidence * 100).toFixed(1)}%)</div>`
+                                        ).join('')}
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                ${log.detection_results && log.detection_results.length > 0 ? `
+                                <div style="margin-top: 15px;">
+                                    <h5>🎯 Detection Results</h5>
+                                    <div style="background: white; padding: 10px; border-radius: 4px; max-height: 150px; overflow-y: auto;">
+                                        ${log.detection_results.map((det, i) => 
+                                            `<div style="margin-bottom: 5px;"><strong>${i+1}:</strong> ${det.class_name} (${(det.confidence * 100).toFixed(1)}%) - [${det.bbox.join(', ')}]</div>`
+                                        ).join('')}
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+                // Update pagination
+                displayLogsPagination(data.pagination);
+            }
+            
+            function toggleLogDetails(logId) {
+                const details = document.getElementById(`details-${logId}`);
+                if (details.style.display === 'none') {
+                    details.style.display = 'block';
+                } else {
+                    details.style.display = 'none';
+                }
+            }
+            
+            function displayLogsPagination(pagination) {
+                const paginationDiv = document.getElementById('logsPagination');
+                
+                let html = '<div style="display: flex; justify-content: center; align-items: center; gap: 10px;">';
+                
+                // Previous button
+                if (pagination.has_prev) {
+                    html += `<button class="btn" onclick="loadDetailedLogs(${pagination.current_page - 1})" style="background: #6c757d; color: white; padding: 8px 12px;">← Previous</button>`;
+                }
+                
+                // Page numbers
+                const startPage = Math.max(1, pagination.current_page - 2);
+                const endPage = Math.min(pagination.total_pages, pagination.current_page + 2);
+                
+                for (let i = startPage; i <= endPage; i++) {
+                    if (i === pagination.current_page) {
+                        html += `<button class="btn" style="background: #007bff; color: white; padding: 8px 12px;">${i}</button>`;
+                    } else {
+                        html += `<button class="btn" onclick="loadDetailedLogs(${i})" style="background: #f8f9fa; color: #495057; padding: 8px 12px; border: 1px solid #dee2e6;">${i}</button>`;
+                    }
+                }
+                
+                // Next button
+                if (pagination.has_next) {
+                    html += `<button class="btn" onclick="loadDetailedLogs(${pagination.current_page + 1})" style="background: #6c757d; color: white; padding: 8px 12px;">Next →</button>`;
+                }
+                
+                html += `</div>`;
+                html += `<div style="text-align: center; margin-top: 10px; color: #666;">Page ${pagination.current_page} of ${pagination.total_pages} (${pagination.total_count} total logs)</div>`;
+                
+                paginationDiv.innerHTML = html;
+            }
+            
+            async function exportLogs() {
+                try {
+                    showNotification('📥 Đang export logs...', 'info');
+                    
+                    const endpoint = document.getElementById('logEndpointFilter').value;
+                    const success = document.getElementById('logSuccessFilter').value;
+                    
+                    let url = `/api/v1/monitoring/logs?page=1&limit=1000`;
+                    if (endpoint) url += `&endpoint=${encodeURIComponent(endpoint)}`;
+                    if (success) url += `&success=${success}`;
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        // Convert to CSV
+                        const csvContent = convertLogsToCSV(data.logs);
+                        
+                        // Download file
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const link = document.createElement('a');
+                        const url_download = URL.createObjectURL(blob);
+                        link.setAttribute('href', url_download);
+                        link.setAttribute('download', `ocr_logs_${new Date().toISOString().split('T')[0]}.csv`);
+                        link.style.visibility = 'hidden';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        showNotification('✅ Logs exported successfully', 'success');
+                    } else {
+                        throw new Error(data.detail || 'Failed to export logs');
+                    }
+                } catch (error) {
+                    showNotification('❌ Lỗi export logs: ' + error.message, 'error');
+                }
+            }
+            
+            function convertLogsToCSV(logs) {
+                const headers = ['Time', 'Endpoint', 'Method', 'Success', 'Processing Time (ms)', 'Model ID', 'Detections', 'Texts', 'File Size', 'IP Address', 'Error Message'];
+                const csvRows = [headers.join(',')];
+                
+                logs.forEach(log => {
+                    const row = [
+                        log.formatted_time,
+                        log.endpoint,
+                        log.method,
+                        log.success,
+                        log.processing_time_ms,
+                        log.model_id || '',
+                        log.total_detections,
+                        log.total_texts,
+                        log.file_size,
+                        log.ip_address,
+                        (log.error_message || '').replace(/,/g, ';')
+                    ];
+                    csvRows.push(row.join(','));
+                });
+                
+                return csvRows.join('\n');
+            }
+        </script>
+    </div>
+</body>
+</html>
