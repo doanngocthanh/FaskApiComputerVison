@@ -23,8 +23,6 @@ pyjwt
 pydantic[email]
 bcrypt
 
-# Database
-sqlite3
 
 # Utility
 python-dotenv
