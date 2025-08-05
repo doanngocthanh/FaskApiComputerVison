@@ -1,28 +1,3 @@
-"""
-Logging Manager - Quản lý logs cho OCR requests v            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS ocr_requests (
-                    id TEXT PRIMARY KEY,
-                    timestamp TEXT,
-                    endpoint TEXT,
-                    method TEXT,
-                    languages TEXT,
-                    model_id TEXT,
-                    processing_time_ms REAL,
-                    success BOOLEAN,
-                    error_message TEXT,
-                    file_size INTEGER,
-                    total_detections INTEGER,
-                    total_texts INTEGER,
-                    ip_address TEXT,
-                    user_agent TEXT,
-                    request_body TEXT,
-                    response_body TEXT,
-                    confidence_threshold REAL,
-                    ocr_results TEXT,
-                    detection_results TEXT
-                )
-            ''')rợ tự động dọn dẹp logs theo chu kỳ tuần/tháng
-"""
 
 import os
 import json
@@ -81,9 +56,9 @@ class LoggingManager:
                 cursor.execute("PRAGMA table_info(ocr_requests)")
                 current_columns = [row[1] for row in cursor.fetchall()]
                 
-                # Expected columns
+                # Expected columns with request_id
                 expected_columns = [
-                    'id', 'timestamp', 'endpoint', 'method', 'languages', 'model_id',
+                    'id', 'request_id', 'timestamp', 'endpoint', 'method', 'languages', 'model_id',
                     'processing_time_ms', 'success', 'error_message', 'file_size',
                     'total_detections', 'total_texts', 'ip_address', 'user_agent',
                     'request_body', 'response_body', 'confidence_threshold',
@@ -93,18 +68,18 @@ class LoggingManager:
                 # Add missing columns
                 for column in expected_columns:
                     if column not in current_columns:
-                        if column in ['request_body', 'response_body', 'ocr_results', 'detection_results']:
+                        if column in ['request_body', 'response_body', 'ocr_results', 'detection_results', 'request_id']:
                             cursor.execute(f'ALTER TABLE ocr_requests ADD COLUMN {column} TEXT')
                         elif column == 'confidence_threshold':
                             cursor.execute(f'ALTER TABLE ocr_requests ADD COLUMN {column} REAL')
                         else:
                             cursor.execute(f'ALTER TABLE ocr_requests ADD COLUMN {column} TEXT')
-                        logger.info(f"✅ Added column {column} to ocr_requests table")
             else:
                 # Create new table with all columns
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS ocr_requests (
                         id TEXT PRIMARY KEY,
+                        request_id TEXT UNIQUE,
                         timestamp TEXT,
                         endpoint TEXT,
                         method TEXT,
@@ -125,6 +100,8 @@ class LoggingManager:
                         detection_results TEXT
                     )
                 ''')
+                
+                logger.info("✅ Created ocr_requests table with all columns")
             
             # Tạo bảng performance metrics
             cursor.execute('''
@@ -152,9 +129,10 @@ class LoggingManager:
             logger.error(f"❌ Failed to initialize database: {e}")
     
     def log_request(self, request_data: Dict[str, Any]):
-        """Log một OCR request"""
+        """Log một OCR request với request_id tracking"""
         try:
-            request_id = str(uuid.uuid4())
+            # Use existing request_id or generate new one
+            request_id = request_data.get('request_id', str(uuid.uuid4()))
             timestamp = datetime.now().isoformat()
             
             # Auto cleanup check (every 24 hours)
@@ -176,7 +154,8 @@ class LoggingManager:
             
             # Base data mapping
             data_mapping = {
-                'id': request_id,
+                'id': str(uuid.uuid4()),  # Auto-generated primary key
+                'request_id': request_id,  # User-trackable ID
                 'timestamp': timestamp,
                 'endpoint': request_data.get('endpoint', ''),
                 'method': request_data.get('method', 'POST'),
@@ -215,7 +194,8 @@ class LoggingManager:
             
             # Log to JSON file (for backup)
             self._append_to_json_log(self.requests_log, {
-                'id': request_id,
+                'id': data_mapping['id'],
+                'request_id': request_id,
                 'timestamp': timestamp,
                 **request_data
             })
@@ -539,7 +519,7 @@ class LoggingManager:
             logger.error(f"❌ Failed to archive logs: {e}")
 
     def get_detailed_logs(self, limit: int = 50, offset: int = 0, 
-                         endpoint: str = None, success: bool = None) -> List[Dict]:
+                         endpoint_filter: str = None, success_filter: bool = None) -> List[Dict]:
         """Lấy detailed logs với request/response"""
         try:
             conn = sqlite3.connect(str(self.db_path))
@@ -549,20 +529,20 @@ class LoggingManager:
             where_conditions = []
             params = []
             
-            if endpoint:
+            if endpoint_filter:
                 where_conditions.append("endpoint LIKE ?")
-                params.append(f"%{endpoint}%")
+                params.append(f"%{endpoint_filter}%")
             
-            if success is not None:
+            if success_filter is not None:
                 where_conditions.append("success = ?")
-                params.append(success)
+                params.append(success_filter)
             
             where_clause = ""
             if where_conditions:
                 where_clause = "WHERE " + " AND ".join(where_conditions)
             
             query = f'''
-                SELECT id, timestamp, endpoint, method, languages, model_id, 
+                SELECT id, request_id, timestamp, endpoint, method, languages, model_id, 
                        processing_time_ms, success, error_message, file_size,
                        total_detections, total_texts, ip_address, user_agent,
                        request_body, response_body, confidence_threshold,
@@ -577,7 +557,7 @@ class LoggingManager:
             cursor.execute(query, params)
             
             columns = [
-                'id', 'timestamp', 'endpoint', 'method', 'languages', 'model_id',
+                'id', 'request_id', 'timestamp', 'endpoint', 'method', 'languages', 'model_id',
                 'processing_time_ms', 'success', 'error_message', 'file_size',
                 'total_detections', 'total_texts', 'ip_address', 'user_agent',
                 'request_body', 'response_body', 'confidence_threshold',
@@ -641,6 +621,47 @@ class LoggingManager:
         except Exception as e:
             logger.error(f"❌ Failed to get log count: {e}")
             return 0
+
+    def get_request_by_id(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """Lấy chi tiết request theo request_id"""
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT * FROM ocr_requests 
+                WHERE request_id = ? 
+                ORDER BY timestamp DESC 
+                LIMIT 1
+            """, (request_id,))
+            
+            row = cursor.fetchone()
+            if not row:
+                conn.close()
+                return None
+            
+            # Get column names
+            cursor.execute("PRAGMA table_info(ocr_requests)")
+            column_names = [row[1] for row in cursor.fetchall()]
+            
+            # Create dictionary from row data
+            result = dict(zip(column_names, row))
+            
+            # Parse JSON fields
+            json_fields = ['languages', 'request_body', 'response_body', 'ocr_results', 'detection_results']
+            for field in json_fields:
+                if field in result and result[field]:
+                    try:
+                        result[field] = json.loads(result[field])
+                    except (json.JSONDecodeError, TypeError):
+                        result[field] = []
+            
+            conn.close()
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to get request by ID {request_id}: {e}")
+            return None
 
 # Global logging manager instance
 logging_manager = LoggingManager()

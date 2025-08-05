@@ -16,9 +16,14 @@ class RouterConfig:
             elif entry.endswith(".py"):
                 module_name = entry[:-3]
                 module_path = f"{base_module_path}.{module_name}"
-                module = importlib.import_module(module_path)
-                if hasattr(module, "router"):
-                    app.include_router(module.router)
+                try:
+                    module = importlib.import_module(module_path)
+                    if hasattr(module, "router"):
+                        app.include_router(module.router)
+                        print(f"✅ Successfully loaded router: {module_path}")
+                except Exception as e:
+                    print(f"⚠️ Failed to load router {module_path}: {e}")
+                    # Continue loading other routers
 
 class MiddlewareConfig:
     @staticmethod
@@ -78,6 +83,14 @@ class ModelConfig:
     @staticmethod
     def get_base_path():
         return os.path.join(os.path.dirname(__file__), ".local", "share", "models")
+class BlogConfig:
+    def __init__(self):
+        self.blog_path = os.path.join(os.path.dirname(__file__), "static", "content")
+     
+    
+    def get_blog_path(self):
+        os.makedirs(self.blog_path, exist_ok=True)
+        return f"{self.blog_path}"
     
 class DBConfig:
     def __init__(self):

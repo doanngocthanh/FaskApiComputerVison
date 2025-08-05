@@ -32,12 +32,33 @@ if LOGGING_AVAILABLE:
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Root endpoint to serve the web interface
+# Root endpoint to serve the new frontend interface
 @app.get("/")
 async def read_root():
-    if os.path.exists("static/index.html"):
+    frontend_index = "static/frontend/index.html"
+    if os.path.exists(frontend_index):
+        return FileResponse(frontend_index)
+    # Fallback to old interface if new frontend not available
+    elif os.path.exists("static/index.html"):
         return FileResponse("static/index.html")
-    return {"message": "AI Processing API with Monitoring is running", "docs": "/docs", "monitoring": "/api/v1/monitoring"}
+    return {"message": "AI Processing API with Monitoring is running", "docs": "/docs", "redoc": "/redoc", "frontend": "/app"}
+
+# Additional frontend routes
+@app.get("/app")
+async def serve_app():
+    """Alternative route to frontend application"""
+    frontend_index = "static/frontend/index.html"
+    if os.path.exists(frontend_index):
+        return FileResponse(frontend_index)
+    return {"message": "Frontend not available", "docs": "/docs"}
+
+@app.get("/frontend")
+async def serve_frontend():
+    """Direct route to frontend application"""
+    frontend_index = "static/frontend/index.html"
+    if os.path.exists(frontend_index):
+        return FileResponse(frontend_index)
+    return {"message": "Frontend not available", "docs": "/docs"}
 
 # Include additional routers from config
 RouterConfig().include_routers(app, RouterConfig().api_dir, "src.router.api")

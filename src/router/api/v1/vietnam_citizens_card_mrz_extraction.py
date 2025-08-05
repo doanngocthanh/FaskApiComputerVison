@@ -1,195 +1,116 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Path, Request
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from typing import Optional, List
-from datetime import datetime
 import uuid
-import os
-import cv2
-import numpy as np
-from io import BytesIO
-import importlib
-import time
 from src.router.api.__init__ import *  
-from src.service.YOLODetector import YOLODetector
-from src.service.EasyOCRManager import EasyOCRManager
-from src.service.LoggingManager import logging_manager
-from PIL import Image
-from config import PtConfig
+from src.service.MRZExtractor import MRZExtractor
 
 # Router setup
 router = APIRouter(
     prefix="/api/v1",
-    tags=["VietNam Citizens Card MRZ Extraction"],
+    tags=["MRZ Detection"],
     responses={
         404: {"model": ErrorResponse, "description": "Resource not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"}
     }
 )
-@router.post("/mrz/ext")
-async def mrz(request: Request, file: UploadFile = File(...)):
+@router.post("/mrz/ext",
+            summary="Extract MRZ from Image", 
+            description="Extract Machine Readable Zone (MRZ) text from uploaded Vietnam Citizens Card image using YOLO detection and PaddleOCR",
+            response_description="Extracted MRZ text with detected dates and processing information")
+async def mrz(file: UploadFile = File(..., description="Image file containing Vietnam Citizens Card (JPG, PNG, JPEG format)")):
     """
-    Endpoint to extract text from MRZ regions in uploaded image.
-    """
-    start_time = time.time()
+    Extract MRZ text from uploaded Vietnam Citizens Card image.
     
-    # Prepare logging data
-    log_data = {
-        'endpoint': '/api/v1/mrz/ext',
-        'method': 'POST',
-        'file_size': 0,
-        'request_body': {'filename': file.filename},
-        'ip_address': request.client.host if request.client else 'unknown'
+    **Process Flow:**
+    1. YOLO model detects MRZ regions in the image
+    2. PaddleOCR extracts text from detected regions  
+    3. Text processing and date extraction (5 different date formats)
+    4. Return combined results with confidence scores
+    
+    **Supported Image Formats:** JPG, PNG, JPEG
+    
+    **Output Example (Success):**
+    ```json
+    {
+        "status": "success",
+        "message": "MRZ extracted successfully",
+        "texts": [
+            "IDVNM2010029147087201002914<<8",
+            "0110130M2610139VNM<<<<<<<<4", 
+            "HA<<TRUONG<GIANG<<<<<<<<<<<<"
+        ],
+        "confidence_scores": [0.95, 0.92, 0.89],
+        "processing_time": 1.23,
+        "dates_found": ["10/01/30", "26/10/39"],
+        "date_extraction": {
+            "total_dates_found": 2,
+            "date_patterns_used": ["dd/mm/yy"],
+            "extraction_method": "regex_pattern_matching"
+        }
     }
+    ```
     
+    **Output Example (No MRZ Found):**
+    ```json
+    {
+        "status": "no_mrz_detected",
+        "message": "No MRZ regions detected in the image.",
+        "texts": []
+    }
+    ```
+    
+    **Output Example (OCR Failed):**
+    ```json
+    {
+        "status": "ocr_failed", 
+        "message": "OCR processing failed.",
+        "texts": []
+    }
+    ```
+    
+    Returns:
+        JSON response containing extracted MRZ text, dates, and processing metadata
+        
+    Raises:
+        HTTPException: 400 if file format is invalid
+        HTTPException: 500 if internal processing error occurs
+    """
     # Validate file type
     if not file.filename.lower().endswith(('.jpg', '.png', '.jpeg')):
-        error_msg = "File must be an image (jpg, png, jpeg)."
-        log_data.update({
-            'success': False,
-            'error_message': error_msg,
-            'processing_time_ms': int((time.time() - start_time) * 1000)
-        })
-        logging_manager.log_request(log_data)
-        raise HTTPException(status_code=400, detail=error_msg)
-    
-    temp_files = []  # Keep track of temp files for cleanup
+        raise HTTPException(status_code=400, detail="File must be an image (jpg, png, jpeg).")
     
     try:
         # Read file content
         content = await file.read()
-        log_data['file_size'] = len(content)
         
-        # Convert to numpy array for YOLO processing
-        nparr = np.frombuffer(content, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        # Initialize MRZ extractor service
+        mrz_extractor = MRZExtractor()
         
-        if image is None:
-            error_msg = "Invalid image file or corrupted data."
-            log_data.update({
-                'success': False,
-                'error_message': error_msg,
-                'processing_time_ms': int((time.time() - start_time) * 1000)
-            })
-            logging_manager.log_request(log_data)
-            raise HTTPException(status_code=400, detail=error_msg)
+        # Extract MRZ using service
+        result = mrz_extractor.extract_mrz_from_bytes(content)
         
-        # Initialize YOLO detector
-        pt_config = PtConfig()
-        model_path = os.path.join(pt_config.get_model_path(), "MRZ.pt")
-        if not os.path.exists(model_path):
-            error_msg = f"MRZ model not found at {model_path}"
-            log_data.update({
-                'success': False,
-                'error_message': error_msg,
-                'processing_time_ms': int((time.time() - start_time) * 1000)
-            })
-            logging_manager.log_request(log_data)
-            raise HTTPException(status_code=500, detail=error_msg)
-        
-        detector = YOLODetector(model_path=model_path)
-        
-        # Detect MRZ regions using numpy array (image)
-        detections = detector.detect(image)
-        
-        if not detections:
-            response = {
+        # Handle different result statuses
+        if result["status"] == "error":
+            raise HTTPException(status_code=500, detail=result["message"])
+        elif result["status"] == "no_mrz_detected":
+            return {
                 "status": "no_mrz_detected",
                 "message": "No MRZ regions detected in the image.",
-                "texts": [],
-                "total_detections": 0,
-                "total_texts": 0,
-                "processing_time_ms": int((time.time() - start_time) * 1000)
+                "texts": []
             }
-            
-            # Log successful response (no detections is still success)
-            log_data.update({
-                'success': True,
-                'processing_time_ms': response["processing_time_ms"],
-                'total_detections': 0,
-                'total_texts': 0,
-                'response_body': response
-            })
-            logging_manager.log_request(log_data)
-            return response
+        elif result["status"] == "ocr_failed":
+            return {
+                "status": "ocr_failed",
+                "message": "OCR processing failed.",
+                "texts": []
+            }
         
-        # Initialize EasyOCR manager
-        ocr_manager = EasyOCRManager()
+        # Return successful result (dates are already included by MRZExtractor service)
+        return result
         
-        # Process each detected MRZ region and collect all texts
-        all_texts = []
-       
-        for i, detection in enumerate(detections):
-            try:
-                # Extract bounding box coordinates
-                x1, y1, x2, y2 = map(int, detection['bbox'])
-                
-                # Crop the detected region
-                cropped_image = image[y1:y2, x1:x2]
-                
-                if cropped_image.size == 0:
-                    continue
-                
-                # Process with EasyOCR directly from numpy array
-                extracted_text = ocr_manager.extract_text(cropped_image)
-                
-                if extracted_text and extracted_text.strip():
-                    all_texts.append(extracted_text.strip())
-                
-            except Exception as e:
-                # Log error but continue with other detections
-                print(f"Error processing detection {i}: {str(e)}")
-                continue
-        
-        # Calculate processing time
-        processing_time = int((time.time() - start_time) * 1000)
-        
-        # Return extracted texts
-        response = {
-            "status": "success",
-            "texts": all_texts,
-            "total_detections": len(detections),
-            "total_texts": len(all_texts),
-            "processing_time_ms": processing_time
-        }
-        
-        # Update log data with success info
-        log_data.update({
-            'success': True,
-            'processing_time_ms': processing_time,
-            'total_detections': len(detections),
-            'total_texts': len(all_texts),
-            'response_body': response
-        })
-        
-        logging_manager.log_request(log_data)
-        return response
-        
-    except HTTPException as e:
-        # Log HTTP exceptions
-        log_data.update({
-            'success': False,
-            'error_message': str(e.detail),
-            'processing_time_ms': int((time.time() - start_time) * 1000)
-        })
-        logging_manager.log_request(log_data)
+    except HTTPException:
+        # Re-raise HTTP exceptions
         raise
     except Exception as e:
         # Handle unexpected errors
-        error_msg = f"Internal server error: {str(e)}"
-        log_data.update({
-            'success': False,
-            'error_message': error_msg,
-            'processing_time_ms': int((time.time() - start_time) * 1000)
-        })
-        logging_manager.log_request(log_data)
-        raise HTTPException(status_code=500, detail=error_msg)
-    
-    finally:
-        # Clean up all temporary files
-        for temp_file in temp_files:
-            try:
-                if os.path.exists(temp_file):
-                    os.remove(temp_file)
-            except Exception as e:
-                print(f"Warning: Could not remove temp file {temp_file}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

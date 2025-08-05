@@ -1,0 +1,294 @@
+<style>
+/* Inline CSS for Home Page */
+.home-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.hero-section {
+    text-align: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+}
+
+.hero-section h1 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.hero-section p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    border: 1px solid #e5e7eb;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.stat-content h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #3b82f6;
+    margin: 0.5rem 0;
+}
+
+.stat-label {
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.features-section {
+    margin-bottom: 3rem;
+}
+
+.features-section h2 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #1f2937;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.feature-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    flex-shrink: 0;
+}
+
+.feature-card h3 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #1f2937;
+}
+
+.feature-card p {
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.quick-actions h2 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #1f2937;
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.action-btn {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: #374151;
+}
+
+.action-btn:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.action-icon {
+    font-size: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .home-page {
+        padding: 1rem 0.5rem;
+    }
+    
+    .hero-section {
+        padding: 1.5rem 1rem;
+    }
+    
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+    
+    .stats-grid,
+    .features-grid,
+    .actions-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-card {
+        padding: 1.5rem;
+    }
+    
+    .features-section h2,
+    .quick-actions h2 {
+        font-size: 1.5rem;
+    }
+}
+</style>
+
+<div class="home-page">
+    <div class="hero-section">
+        <h1>🎯 YOLO OCR API Service</h1>
+        <p>Dịch vụ nhận diện và xử lý văn bản từ hình ảnh sử dụng YOLO và OCR</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-content">
+                <h3>API Endpoints</h3>
+                <p class="stat-number">15+</p>
+                <p class="stat-label">Endpoints hoạt động</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">🤖</div>
+            <div class="stat-content">
+                <h3>AI Models</h3>
+                <p class="stat-number">5+</p>
+                <p class="stat-label">Models được hỗ trợ</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-content">
+                <h3>Performance</h3>
+                <p class="stat-number">< 2s</p>
+                <p class="stat-label">Thời gian xử lý</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="features-section">
+        <h2>🚀 Tính năng chính</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <div>
+                    <h3>YOLO Object Detection</h3>
+                    <p>Nhận diện và phân loại các loại thẻ, giấy tờ tự động</p>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">👁️</div>
+                <div>
+                    <h3>OCR Text Recognition</h3>
+                    <p>Trích xuất văn bản từ hình ảnh với độ chính xác cao</p>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <div>
+                    <h3>MRZ Processing</h3>
+                    <p>Xử lý Machine Readable Zone trên passport, ID card</p>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">⚙️</div>
+                <div>
+                    <h3>Flexible Configuration</h3>
+                    <p>Cấu hình linh hoạt cho các loại model và template</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-actions">
+        <h2>⚡ Thao tác nhanh</h2>
+        <div class="actions-grid">
+            <a href="#" class="action-btn" onclick="window.componentManager.navigate('/static/frontend/pages/card-detection.html'); return false;">
+                <div class="action-icon">🎯</div>
+                <div>Card Detection</div>
+            </a>
+            
+            <a href="#" class="action-btn" onclick="window.componentManager.navigate('/static/frontend/pages/config.html'); return false;">
+                <div class="action-icon">⚙️</div>
+                <div>Configuration</div>
+            </a>
+            
+            <a href="/docs" class="action-btn" target="_blank">
+                <div class="action-icon">📚</div>
+                <div>API Docs</div>
+            </a>
+            
+            <a href="/redoc" class="action-btn" target="_blank">
+                <div class="action-icon">📖</div>
+                <div>ReDoc</div>
+            </a>
+        </div>
+    </div>
+</div>

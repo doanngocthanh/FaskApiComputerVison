@@ -14,6 +14,7 @@ import cv2
 import numpy as np
 import json
 import tempfile
+import logging
 from pathlib import Path
 import shutil
 import easyocr
@@ -114,6 +115,173 @@ async def get_supported_languages():
         "supported_languages": SUPPORTED_LANGUAGES,
         "total": len(SUPPORTED_LANGUAGES)
     }
+
+@router.post("/ocr")
+async def ocr_with_model(
+    file: UploadFile = File(..., description="Ảnh để OCR"),
+    model_id: str = Form(None, description="ID của model YOLO để detect (optional)"),
+    languages: str = Form('["en","vi"]', description="JSON array các ngôn ngữ OCR"),
+    confidence_threshold: float = Form(0.5, description="Ngưỡng confidence để detect")
+):
+    """OCR với YOLO detection + EasyOCR hoặc chỉ EasyOCR"""
+    
+    if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+        raise HTTPException(status_code=400, detail="Image must be jpg, jpeg, or png")
+    
+    temp_files = []
+    
+    try:
+        # Parse languages
+        try:
+            lang_list = json.loads(languages)
+            if not isinstance(lang_list, list):
+                raise ValueError("Languages must be a JSON array")
+                
+            # Validate languages
+            invalid_langs = [lang for lang in lang_list if lang not in SUPPORTED_LANGUAGES]
+            if invalid_langs:
+                raise ValueError(f"Unsupported language(s): {', '.join(invalid_langs)}. Supported: {', '.join(SUPPORTED_LANGUAGES.keys())}")
+                
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=422, detail=f"Invalid JSON format for languages. Expected format: [\"en\",\"vi\"]. Received: {languages}")
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        
+        # Save uploaded image temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_path = temp_file.name
+            temp_files.append(temp_path)
+        
+        # Load image
+        image = cv2.imread(temp_path)
+        if image is None:
+            raise HTTPException(status_code=400, detail="Invalid image file")
+        
+        all_ocr_results = []
+        total_texts = 0
+        detections = []
+        
+        # Check if model_id is provided for YOLO detection
+        if model_id:
+            # Load YOLO model and detect objects
+            yolo_model = YOLODetector(model_id=model_id)
+            detections = yolo_model.detect(temp_path, confidence_threshold=confidence_threshold)
+            
+            # Process OCR on detected regions
+            for detection in detections:
+                # Crop detected region
+                x1, y1, x2, y2 = detection['bbox']
+                cropped = image[int(y1):int(y2), int(x1):int(x2)]
+                
+                if cropped.size == 0:
+                    continue
+                    
+                # Save cropped image temporarily
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as crop_file:
+                    cv2.imwrite(crop_file.name, cropped)
+                    crop_path = crop_file.name
+                    temp_files.append(crop_path)
+                
+                # OCR on cropped region
+                reader = get_simple_easyocr_reader(lang_list)
+                ocr_results = reader.readtext(crop_path)
+                
+                processed_results = []
+                for result in ocr_results:
+                    try:
+                        # EasyOCR returns (bbox, text, confidence)
+                        if len(result) == 3:
+                            bbox, text, confidence = result
+                        elif len(result) == 2:
+                            # Some versions might return (text, confidence) 
+                            text, confidence = result
+                            bbox = None
+                        else:
+                            print(f"Unexpected OCR result format: {result}")
+                            continue
+                            
+                        if confidence > 0.5:  # OCR confidence threshold
+                            if bbox is not None:
+                                # Adjust bbox coordinates to original image
+                                adjusted_bbox = []
+                                for point in bbox:
+                                    adjusted_bbox.append([point[0] + x1, point[1] + y1])
+                            else:
+                                # If no bbox, use detection bbox
+                                adjusted_bbox = detection['bbox']
+                            
+                            processed_results.append({
+                                "text": text,
+                                "confidence": float(confidence),
+                                "bbox": adjusted_bbox
+                            })
+                            total_texts += 1
+                    except Exception as e:
+                        print(f"Error processing OCR result {result}: {e}")
+                        continue
+                
+                if processed_results:
+                    all_ocr_results.append({
+                        "detection_bbox": detection['bbox'],
+                        "detection_class": detection['class_name'],
+                        "detection_confidence": detection['confidence'],
+                        "ocr_results": processed_results
+                    })
+        else:
+            # OCR only without YOLO detection
+            reader = get_simple_easyocr_reader(lang_list)
+            ocr_results = reader.readtext(temp_path)
+            
+            for result in ocr_results:
+                try:
+                    # EasyOCR returns (bbox, text, confidence)
+                    if len(result) == 3:
+                        bbox, text, confidence = result
+                    elif len(result) == 2:
+                        # Some versions might return (text, confidence)
+                        text, confidence = result
+                        bbox = [[0, 0], [100, 0], [100, 20], [0, 20]]  # Default bbox
+                    else:
+                        print(f"Unexpected OCR result format: {result}")
+                        continue
+                        
+                    if confidence > 0.5:  # OCR confidence threshold
+                        all_ocr_results.append({
+                            "text": text,
+                            "confidence": float(confidence),
+                            "bbox": bbox
+                        })
+                        total_texts += 1
+                except Exception as e:
+                    print(f"Error processing OCR result {result}: {e}")
+                    continue
+        
+        return {
+            "status": "success",
+            "results": all_ocr_results,
+            "languages_used": lang_list,
+            "processing_time_ms": 0,  # Will be calculated by middleware
+            "total_detections": len(detections),
+            "total_texts": total_texts,
+            "model_id": model_id,
+            "confidence_threshold": confidence_threshold if model_id else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error in OCR: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    finally:
+        # Clean up temporary files
+        for temp_file in temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.unlink(temp_file)
+            except:
+                pass
 
 @router.post("/models/upload-step1")
 async def upload_model_step1(

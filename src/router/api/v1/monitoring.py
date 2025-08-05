@@ -29,7 +29,7 @@ except ImportError:
 
 # Router setup
 router = APIRouter(
-    prefix="/api/v1/monitoring",
+    prefix="/api/v1/yolo-ocr/monitoring",
     tags=["Monitoring & Logging"],
     responses={
         404: {"description": "Resource not found"},
@@ -269,7 +269,7 @@ async def monitoring_dashboard():
             async function loadStats(period = 'today') {
                 currentPeriod = period;
                 try {
-                    const response = await fetch(`/api/v1/monitoring/statistics?period=${period}`);
+                    const response = await fetch(`/api/v1/yolo-ocr/monitoring/statistics?period=${period}`);
                     const data = await response.json();
                     
                     if (response.ok) {
@@ -335,7 +335,7 @@ async def monitoring_dashboard():
             // Load performance metrics
             async function loadPerformance() {
                 try {
-                    const response = await fetch('/api/v1/monitoring/performance');
+                    const response = await fetch('/api/v1/yolo-ocr/monitoring/performance');
                     const data = await response.json();
                     
                     if (response.ok) {
@@ -512,7 +512,7 @@ async def get_detailed_logs(
 
 @router.get("/logs/{log_id}")
 async def get_log_detail(log_id: str):
-    """Lấy chi tiết của một log específico"""
+    """Lấy chi tiết của một log theo ID"""
     try:
         logs = logging_manager.get_detailed_logs(limit=1, offset=0)
         
@@ -527,6 +527,55 @@ async def get_log_detail(log_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get log detail: {str(e)}")
+
+@router.get("/request/{request_id}")
+async def get_request_detail(request_id: str):
+    """Lấy chi tiết request theo request_id UUID"""
+    try:
+        request_detail = logging_manager.get_request_by_id(request_id)
+        
+        if not request_detail:
+            raise HTTPException(status_code=404, detail=f"Request with ID {request_id} not found")
+        
+        return {
+            "request_id": request_id,
+            "request_detail": request_detail,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get request detail: {str(e)}")
+
+@router.get("/requests/search")
+async def search_requests(
+    endpoint: Optional[str] = Query(None, description="Filter by endpoint"),
+    success: Optional[bool] = Query(None, description="Filter by success status"),
+    limit: int = Query(50, description="Number of results to return"),
+    offset: int = Query(0, description="Number of results to skip")
+):
+    """Search requests with filters"""
+    try:
+        requests = logging_manager.get_detailed_logs(
+            limit=limit, 
+            offset=offset, 
+            endpoint_filter=endpoint,
+            success_filter=success
+        )
+        
+        total_count = logging_manager.get_log_count(endpoint=endpoint, success=success)
+        
+        return {
+            "requests": requests,
+            "total": total_count,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + limit < total_count
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to search requests: {str(e)}")
 
 @router.get("/health")
 async def health_check():

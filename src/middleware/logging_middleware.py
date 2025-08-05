@@ -1,10 +1,11 @@
 """
 OCR Request Logging Middleware
-Tự động log tất cả OCR requests và responses
+Tự động log tất cả OCR requests và responses với UUID tracking
 """
 
 import time
 import json
+import uuid
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -20,6 +21,9 @@ class OCRLoggingMiddleware(BaseHTTPMiddleware):
         self.logging_manager = logging_manager
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Generate unique request ID
+        request_id = str(uuid.uuid4())
+        
         # Skip logging for non-OCR endpoints
         if not self._should_log_request(request):
             return await call_next(request)
@@ -27,7 +31,7 @@ class OCRLoggingMiddleware(BaseHTTPMiddleware):
         start_time = time.time()
         
         # Prepare request data
-        request_data = await self._prepare_request_data(request)
+        request_data = await self._prepare_request_data(request, request_id)
         
         # Process request
         response = None
@@ -84,7 +88,9 @@ class OCRLoggingMiddleware(BaseHTTPMiddleware):
             **response_data,
             'success': success,
             'error_message': error_message,
-            'processing_time_ms': processing_time
+            'processing_time_ms': processing_time,
+            'request_id': request_id,
+            'timestamp': time.time()
         }
         
         # Log the request
@@ -154,9 +160,10 @@ class OCRLoggingMiddleware(BaseHTTPMiddleware):
         
         return False
     
-    async def _prepare_request_data(self, request: Request) -> dict:
+    async def _prepare_request_data(self, request: Request, request_id: str) -> dict:
         """Chuẩn bị dữ liệu request để log"""
         data = {
+            'request_id': request_id,
             'endpoint': request.url.path,
             'method': request.method,
             'ip_address': self._get_client_ip(request),

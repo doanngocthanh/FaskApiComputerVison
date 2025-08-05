@@ -3,6 +3,7 @@ fastapi
 werkzeug
 uvicorn
 python-multipart
+httpx
 
 # OCR Dependencies
 pyclipper
@@ -28,3 +29,6 @@ sqlite3
 # Utility
 python-dotenv
 easyocr
+
+markdown
+httpx
