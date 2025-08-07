@@ -3,7 +3,6 @@ fastapi
 werkzeug
 uvicorn
 python-multipart
-httpx
 
 # OCR Dependencies
 pyclipper
@@ -23,10 +22,8 @@ pyjwt
 pydantic[email]
 bcrypt
 
+sepay
 
 # Utility
 python-dotenv
 easyocr
-
-markdown
-httpx

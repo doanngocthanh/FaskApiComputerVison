@@ -15,7 +15,8 @@ from src.service.PaddleOCR import PaddleOCR
 from PIL import Image
 from config import PtConfig
 from src.service.CardConfigService import card_config_service
-
+from src.service.TextExtractor import TextExtractor
+from difflib import SequenceMatcher
 # Response Models for better API documentation
 class CardCategory(BaseModel):
     """Card category information"""
@@ -150,7 +151,8 @@ router = APIRouter(
 )
 @router.get("/card/categories",
            summary="Get Card Categories",
-           description="Retrieve all active card categories from database")
+           description="Retrieve all active card categories from database",
+           )
 def get_card_types():
     return card_config_service.get_card_categories()
 
@@ -265,7 +267,7 @@ async def detect_card(file: UploadFile = File(...)):
         
         # Initialize YOLO detector
         pt_config = PtConfig()
-        model_path = os.path.join(pt_config.get_model_path(), "CCCD_OLD_NEW_GPLX.pt")
+        model_path = os.path.join(pt_config.get_model_path(), "CCCD_FACE_DETECT_2025_NEW_TITLE.pt")
         if not os.path.exists(model_path):
             raise HTTPException(status_code=500, detail=f"CCCD Old/New detection model not found at {model_path}")
         
@@ -321,7 +323,44 @@ async def detect_card(file: UploadFile = File(...)):
             if class_name:
                 print(f"Detected class name: {class_name}, confidence: {confidence}")  # Debugging line
                 label = class_name.lower()
-                
+                if label =="title":
+                    #crop ra vùng chứa title
+                    x1, y1, x2, y2 = detection.get("bbox", [0, 0, 0, 0])
+                    cropped_image = image[y1:y2, x1:x2]
+                    #dùng TextExtractor để đọc
+                    text_extractor = TextExtractor()
+                    extracted_text = text_extractor.extract_from_image_en(cropped_image)
+
+                    print(f"Extracted title text: {extracted_text}")  # Debugging line
+                    # Use fuzzy matching for text similarity
+                    
+                    def text_similarity(text1, text2):
+                        return SequenceMatcher(None, text1.upper(), text2.upper()).ratio()
+                    
+                    # Define keywords and thresholds
+                    cccd_new_keywords = ["CAN CUOC", "CĂNG CƯỚC", "CĂN CƯỚC"]
+                    cccd_old_keywords = ["CONG DAN", "CÔNG DÂN", "CỘNG DÂN","CUOC CONG DAN", "CĂN CƯỚC CÔNG DÂN"]
+                    threshold = 0.7  # Similarity threshold (70%)
+                    
+                    # Check for CCCD new keywords
+                    best_similarity = 0
+                    detected_type = None
+                    
+                    for keyword in cccd_new_keywords:
+                        similarity = max([text_similarity(extracted_text, keyword) for keyword in [keyword]])
+                        if similarity > threshold and similarity > best_similarity:
+                            best_similarity = similarity
+                            detected_type = "cccd_new_front"
+                    
+                    for keyword in cccd_old_keywords:
+                        similarity = max([text_similarity(extracted_text, keyword) for keyword in [keyword]])
+                        if similarity > threshold and similarity > best_similarity:
+                            best_similarity = similarity
+                            detected_type = "cccd_qr_front"
+                    
+                    if detected_type:
+                        label = detected_type
+                        print(f"Text classification: {detected_type} (similarity: {best_similarity:.2f})")
                 if label == "cccd_qr_front":
                     card_category = card_config_service.get_card_category_by_id(0)  # Thẻ Căn Cước Công Dân (Cũ)
                     card_type = card_config_service.get_card_type_by_id(0)  # Mặt Trước
@@ -455,4 +494,3 @@ async def detect_card(file: UploadFile = File(...)):
         for temp_file in temp_files:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
-

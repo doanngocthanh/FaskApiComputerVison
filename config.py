@@ -64,6 +64,8 @@ class PtConfig:
         return model_path  
     def get_model_path(self):
         return os.path.join(os.path.dirname(__file__), ".local", "share", "models", "pt")
+    def get_model_ocr_path(self):
+        return os.path.join(os.path.dirname(__file__), ".local", "share", "models", "pt", "ocr")
 class TensorflowConfig:
     def __init__(self):
         self.weights_path = os.path.join(os.path.dirname(__file__), ".local", "share", "models", "tensorflow")

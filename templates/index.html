@@ -708,8 +708,7 @@
                             <li><i class="fas fa-check text-success"></i> Text extraction</li>
                             <li><i class="fas fa-check text-success"></i> High accuracy results</li>
                         </ul>
-                    </div>
-                </div>
+                    </div>                </div>
                 <div class="col-lg-6">
                     <div class="feature-card text-center">
                         <div class="feature-icon">
@@ -721,6 +720,36 @@
                             <li><i class="fas fa-check text-success"></i> MRZ detection</li>
                             <li><i class="fas fa-check text-success"></i> Data parsing</li>
                             <li><i class="fas fa-check text-success"></i> Structured output</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="feature-card text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <h4>Face Recognition</h4>
+                        <p class="text-muted">Advanced face detection and recognition system with registration, verification, and identification capabilities.</p>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Face registration</li>
+                            <li><i class="fas fa-check text-success"></i> Face verification</li>
+                            <li><i class="fas fa-check text-success"></i> Real-time recognition</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="feature-card text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <h4>Object Detection</h4>
+                        <p class="text-muted">General purpose object detection using YOLO models with custom training capabilities and high accuracy.</p>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Custom models</li>
+                            <li><i class="fas fa-check text-success"></i> Real-time detection</li>
+                            <li><i class="fas fa-check text-success"></i> Multiple objects</li>
                         </ul>
                     </div>
                 </div>
@@ -779,10 +808,12 @@ curl -X POST "http://localhost:8000/api/v1/card/detect" \
             <div class="row justify-content-center">
                 <div class="col-lg-11">
                     <div class="demo-container">
-                        <!-- Demo Tabs -->
-                        <div class="demo-tabs">
+                        <!-- Demo Tabs -->                        <div class="demo-tabs">
                             <button class="demo-tab active" onclick="switchTab('card-detection')">
                                 <i class="fas fa-id-card me-2"></i>ID Card Detection
+                            </button>
+                            <button class="demo-tab" onclick="switchTab('face-recognition')">
+                                <i class="fas fa-user-check me-2"></i>Face Recognition
                             </button>
                             <button class="demo-tab" onclick="switchTab('mrz-extraction')">
                                 <i class="fas fa-barcode me-2"></i>MRZ Extraction
@@ -832,6 +863,129 @@ curl -X POST "http://localhost:8000/api/v1/card/detect" \
                                                 <i class="fas fa-info-circle fa-3x mb-3 opacity-50"></i>
                                                 <h5>Ready for Detection</h5>
                                                 <p>Upload an ID card image to see AI detection results</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>                        </div>
+
+                        <!-- Face Recognition Tab -->
+                        <div id="face-recognition" class="tab-content">
+                            <div class="row g-4">
+                                <div class="col-lg-4">
+                                    <div class="upload-section">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h4 class="section-title">
+                                                <i class="fas fa-user-plus"></i> Register Face
+                                            </h4>
+                                            <span class="feature-badge">Face Registration</span>
+                                        </div>
+                                        <p class="text-muted mb-3">Register a new user's face for recognition system.</p>
+                                        
+                                        <div class="mb-3">
+                                            <label for="userId" class="form-label">User ID</label>
+                                            <input type="text" class="form-control" id="userId" placeholder="Enter unique user ID">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="userName" class="form-label">Full Name</label>
+                                            <input type="text" class="form-control" id="userName" placeholder="Enter full name">
+                                        </div>
+                                        
+                                        <div class="upload-area" id="uploadAreaFace1" onclick="selectFile('face1')">
+                                            <div class="upload-icon">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            <h6 class="mb-2">Upload Face Photo</h6>
+                                            <p class="text-muted mb-0 small">One face only (JPG, PNG)</p>
+                                            <input type="file" id="fileInputFace1" accept="image/*" style="display: none;">
+                                        </div>
+                                        
+                                        <div class="mt-3">
+                                            <button class="btn btn-success btn-lg w-100" id="registerFaceBtn" onclick="registerFace()" disabled>
+                                                <i class="fas fa-user-plus me-2"></i> Register Face
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-lg-4">
+                                    <div class="upload-section">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h4 class="section-title">
+                                                <i class="fas fa-user-check"></i> Verify Face
+                                            </h4>
+                                            <span class="feature-badge">Face Verification</span>
+                                        </div>
+                                        <p class="text-muted mb-3">Verify identity against registered user.</p>
+                                        
+                                        <div class="mb-3">
+                                            <label for="verifyUserId" class="form-label">User ID to Verify</label>
+                                            <input type="text" class="form-control" id="verifyUserId" placeholder="Enter user ID">
+                                        </div>
+                                        
+                                        <div class="upload-area" id="uploadAreaFace2" onclick="selectFile('face2')">
+                                            <div class="upload-icon">
+                                                <i class="fas fa-user-shield"></i>
+                                            </div>
+                                            <h6 class="mb-2">Upload Photo to Verify</h6>
+                                            <p class="text-muted mb-0 small">Face photo for verification</p>
+                                            <input type="file" id="fileInputFace2" accept="image/*" style="display: none;">
+                                        </div>
+                                        
+                                        <div class="mt-3">
+                                            <button class="btn btn-warning btn-lg w-100" id="verifyFaceBtn" onclick="verifyFace()" disabled>
+                                                <i class="fas fa-user-check me-2"></i> Verify Face
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-lg-4">
+                                    <div class="upload-section">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h4 class="section-title">
+                                                <i class="fas fa-search"></i> Recognize Face
+                                            </h4>
+                                            <span class="feature-badge">Face Recognition</span>
+                                        </div>
+                                        <p class="text-muted mb-3">Identify person from all registered users.</p>
+                                        
+                                        <div class="upload-area" id="uploadAreaFace3" onclick="selectFile('face3')">
+                                            <div class="upload-icon">
+                                                <i class="fas fa-search"></i>
+                                            </div>
+                                            <h6 class="mb-2">Upload Photo to Recognize</h6>
+                                            <p class="text-muted mb-0 small">Find matching user</p>
+                                            <input type="file" id="fileInputFace3" accept="image/*" style="display: none;">
+                                        </div>
+                                        
+                                        <div class="mt-3">
+                                            <button class="btn btn-primary btn-lg w-100" id="recognizeFaceBtn" onclick="recognizeFace()" disabled>
+                                                <i class="fas fa-search me-2"></i> Recognize Face
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="mt-3">
+                                            <button class="btn btn-info btn-sm w-100" onclick="loadRegisteredUsers()">
+                                                <i class="fas fa-users me-2"></i> View Registered Users
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="results-section">
+                                        <h4 class="section-title">
+                                            <i class="fas fa-chart-line"></i> Face Recognition Results
+                                        </h4>
+                                        <div class="result-container" id="faceResultContainer">
+                                            <div class="text-center text-muted py-5">
+                                                <i class="fas fa-user-friends fa-3x mb-3 opacity-50"></i>
+                                                <h5>Ready for Face Recognition</h5>
+                                                <p>Register, verify, or recognize faces using our AI system</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1054,9 +1208,7 @@ Content-Type: multipart/form-data
     <!-- Demo Functionality -->
     <script>
         let selectedFiles = {};
-        let currentTab = 'card-detection';
-
-        // Initialize when page loads
+        let currentTab = 'card-detection';        // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
             // Setup file input listeners for 3 tabs only
             for (let i = 1; i <= 3; i++) {
@@ -1092,6 +1244,16 @@ Content-Type: multipart/form-data
                     }
                 }
             }
+
+            // Setup face recognition file input listeners
+            ['face1', 'face2', 'face3'].forEach(faceId => {
+                const fileInput = document.getElementById(`fileInput${faceId.charAt(faceId.length-1) === '1' ? 'Face1' : faceId.charAt(faceId.length-1) === '2' ? 'Face2' : 'Face3'}`);
+                if (fileInput) {
+                    fileInput.addEventListener('change', function(e) {
+                        handleFaceFileSelect(e.target.files[0], faceId);
+                    });
+                }
+            });
 
             // MRZ input listener
             const mrzInput = document.getElementById('mrzInput');
@@ -1141,11 +1303,10 @@ Content-Type: multipart/form-data
             const previewContainer = document.getElementById('previewContainer');
             if (loadingSpinner) loadingSpinner.style.display = 'none';
             if (previewContainer) previewContainer.style.display = 'none';
-        }
-
-        function updateAPIEndpoint(tabName) {
+        }        function updateAPIEndpoint(tabName) {
             const endpoints = {
                 'card-detection': 'POST /api/v1/card/detect\nContent-Type: multipart/form-data',
+                'face-recognition': 'POST /api/v1/face/register|verify|recognize\nContent-Type: multipart/form-data',
                 'mrz-extraction': 'POST /api/v1/mrz/ext\nContent-Type: multipart/form-data',
                 'mrz-parsing': 'POST /api/v1/mrz/parse\nContent-Type: application/json\nBody: {"mrz_string": "IDVNM179003..."}'
             };
@@ -1154,13 +1315,22 @@ Content-Type: multipart/form-data
             if (apiEndpoint) {
                 apiEndpoint.textContent = endpoints[tabName] || '';
             }
-        }
-
-        // File selection for different tabs
+        }// File selection for different tabs
         function selectFile(tabNumber) {
-            const fileInput = document.getElementById(`fileInput${tabNumber}`);
-            if (fileInput) {
-                fileInput.click();
+            if (typeof tabNumber === 'string' && tabNumber.startsWith('face')) {
+                // Handle face recognition file inputs
+                const inputId = tabNumber === 'face1' ? 'fileInputFace1' : 
+                               tabNumber === 'face2' ? 'fileInputFace2' : 'fileInputFace3';
+                const fileInput = document.getElementById(inputId);
+                if (fileInput) {
+                    fileInput.click();
+                }
+            } else {
+                // Handle regular file inputs
+                const fileInput = document.getElementById(`fileInput${tabNumber}`);
+                if (fileInput) {
+                    fileInput.click();
+                }
             }
         }
 
@@ -1242,11 +1412,423 @@ Content-Type: multipart/form-data
             
             // Parse MRZ text directly
             await processTextRequest('/api/v1/mrz/parse', { mrz_string: mrzText }, 3, 'parse');
-        }
-
-        async function processYOLO() {
+        }        async function processYOLO() {
             // Function removed - YOLO tab no longer exists
         }
+
+        // ================ FACE RECOGNITION FUNCTIONS ================
+        
+        // Face file handling
+        function handleFaceFileSelect(file, faceId) {
+            if (!file) return;
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file');
+                return;
+            }
+            
+            // Validate file size (10MB max)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size should be less than 10MB');
+                return;
+            }
+            
+            selectedFiles[faceId] = file;
+            
+            // Update upload area to show file info
+            const uploadArea = document.getElementById(`uploadArea${faceId.charAt(faceId.length-1) === '1' ? 'Face1' : faceId.charAt(faceId.length-1) === '2' ? 'Face2' : 'Face3'}`);
+            if (uploadArea) {
+                uploadArea.classList.add('has-file');
+                uploadArea.innerHTML = `
+                    <div class="upload-icon">
+                        <i class="fas fa-check-circle text-success"></i>
+                    </div>
+                    <h6 class="text-success mb-2">Image Ready!</h6>
+                    <div class="file-info">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <i class="fas fa-file-image me-2 text-primary"></i>
+                            <strong class="small">${file.name}</strong>
+                        </div>
+                        <small class="text-muted d-block mb-2">
+                            Size: ${(file.size / 1024 / 1024).toFixed(2)} MB
+                        </small>
+                        <button class="change-file-btn small" onclick="selectFile('${faceId}'); event.stopPropagation();">
+                            <i class="fas fa-exchange-alt me-1"></i> Change
+                        </button>
+                    </div>
+                `;
+            }
+            
+            // Enable corresponding button
+            const btnId = faceId === 'face1' ? 'registerFaceBtn' : 
+                         faceId === 'face2' ? 'verifyFaceBtn' : 'recognizeFaceBtn';
+            enableFaceButton(btnId, faceId);
+        }
+        
+        function enableFaceButton(btnId, faceId) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            
+            if (faceId === 'face1') {
+                // For registration, also need user ID and name
+                const userId = document.getElementById('userId').value.trim();
+                const userName = document.getElementById('userName').value.trim();
+                btn.disabled = !(selectedFiles[faceId] && userId && userName);
+            } else if (faceId === 'face2') {
+                // For verification, also need user ID
+                const verifyUserId = document.getElementById('verifyUserId').value.trim();
+                btn.disabled = !(selectedFiles[faceId] && verifyUserId);
+            } else {
+                // For recognition, only need file
+                btn.disabled = !selectedFiles[faceId];
+            }
+        }
+        
+        // Face Registration
+        async function registerFace() {
+            const userId = document.getElementById('userId').value.trim();
+            const userName = document.getElementById('userName').value.trim();
+            const file = selectedFiles['face1'];
+            
+            if (!file) {
+                alert('Please select a face image');
+                return;
+            }
+            
+            if (!userId || !userName) {
+                alert('Please enter User ID and Full Name');
+                return;
+            }
+            
+            showFaceLoading('Registering face...');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('user_id', userId);
+                formData.append('name', userName);
+                
+                const response = await fetch('/api/v1/face/register', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    displayFaceResults('registration', result);
+                    // Clear form
+                    document.getElementById('userId').value = '';
+                    document.getElementById('userName').value = '';
+                    resetFaceUpload('face1', 'registerFaceBtn');
+                } else {
+                    throw new Error(result.detail || 'Registration failed');
+                }
+                
+            } catch (error) {
+                console.error('Error registering face:', error);
+                showFaceError('Registration failed: ' + error.message);
+            }
+        }
+        
+        // Face Verification
+        async function verifyFace() {
+            const verifyUserId = document.getElementById('verifyUserId').value.trim();
+            const file = selectedFiles['face2'];
+            
+            if (!file) {
+                alert('Please select a face image');
+                return;
+            }
+            
+            if (!verifyUserId) {
+                alert('Please enter User ID to verify');
+                return;
+            }
+            
+            showFaceLoading('Verifying face...');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('user_id', verifyUserId);
+                
+                const response = await fetch('/api/v1/face/verify', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    displayFaceResults('verification', result);
+                    // Clear form
+                    document.getElementById('verifyUserId').value = '';
+                    resetFaceUpload('face2', 'verifyFaceBtn');
+                } else {
+                    throw new Error(result.detail || 'Verification failed');
+                }
+                
+            } catch (error) {
+                console.error('Error verifying face:', error);
+                showFaceError('Verification failed: ' + error.message);
+            }
+        }
+        
+        // Face Recognition
+        async function recognizeFace() {
+            const file = selectedFiles['face3'];
+            
+            if (!file) {
+                alert('Please select a face image');
+                return;
+            }
+            
+            showFaceLoading('Recognizing face...');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch('/api/v1/face/recognize', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    displayFaceResults('recognition', result);
+                    resetFaceUpload('face3', 'recognizeFaceBtn');
+                } else {
+                    throw new Error(result.detail || 'Recognition failed');
+                }
+                
+            } catch (error) {
+                console.error('Error recognizing face:', error);
+                showFaceError('Recognition failed: ' + error.message);
+            }
+        }
+        
+        // Load registered users
+        async function loadRegisteredUsers() {
+            showFaceLoading('Loading registered users...');
+            
+            try {
+                const response = await fetch('/api/v1/face/users');
+                const result = await response.json();
+                
+                if (response.ok) {
+                    displayFaceResults('users', result);
+                } else {
+                    throw new Error(result.detail || 'Failed to load users');
+                }
+                
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showFaceError('Failed to load users: ' + error.message);
+            }
+        }
+        
+        // Helper functions for face recognition
+        function showFaceLoading(message) {
+            const container = document.getElementById('faceResultContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="loading-spinner" style="display: block;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 mb-0">${message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function showFaceError(message) {
+            const container = document.getElementById('faceResultContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        ${message}
+                    </div>
+                `;
+            }
+        }
+        
+        function resetFaceUpload(faceId, btnId) {
+            // Reset file selection
+            delete selectedFiles[faceId];
+            
+            // Reset upload area
+            const uploadAreaId = faceId === 'face1' ? 'uploadAreaFace1' : 
+                                faceId === 'face2' ? 'uploadAreaFace2' : 'uploadAreaFace3';
+            const uploadArea = document.getElementById(uploadAreaId);
+            if (uploadArea) {
+                uploadArea.classList.remove('has-file');
+                const iconClass = faceId === 'face1' ? 'fa-user' : 
+                                 faceId === 'face2' ? 'fa-user-shield' : 'fa-search';
+                const titleText = faceId === 'face1' ? 'Upload Face Photo' : 
+                                 faceId === 'face2' ? 'Upload Photo to Verify' : 'Upload Photo to Recognize';
+                uploadArea.innerHTML = `
+                    <div class="upload-icon">
+                        <i class="fas ${iconClass}"></i>
+                    </div>
+                    <h6 class="mb-2">${titleText}</h6>
+                    <p class="text-muted mb-0 small">One face only (JPG, PNG)</p>
+                `;
+            }
+            
+            // Disable button
+            const btn = document.getElementById(btnId);
+            if (btn) btn.disabled = true;
+        }
+        
+        function displayFaceResults(type, result) {
+            const container = document.getElementById('faceResultContainer');
+            if (!container) return;
+            
+            let html = '';
+            
+            switch (type) {
+                case 'registration':
+                    html = `
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-user-check me-2"></i>Face Registration Successful!</h5>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <strong>User ID:</strong> ${result.user_id}<br>
+                                    <strong>Name:</strong> ${result.name}<br>
+                                    <strong>Status:</strong> <span class="badge bg-success">Registered</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Faces Detected:</strong> ${result.faces_detected}<br>
+                                    <strong>Registration Time:</strong> ${new Date(result.created_at).toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'verification':
+                    const isMatch = result.is_match;
+                    html = `
+                        <div class="alert ${isMatch ? 'alert-success' : 'alert-warning'}">
+                            <h5><i class="fas ${isMatch ? 'fa-check-circle' : 'fa-times-circle'} me-2"></i>Face Verification Result</h5>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <strong>User ID:</strong> ${result.user_id}<br>
+                                    <strong>Match:</strong> <span class="badge bg-${isMatch ? 'success' : 'danger'}">${isMatch ? 'VERIFIED' : 'NOT MATCHED'}</span><br>
+                                    <strong>Confidence:</strong> ${(result.similarity_score * 100).toFixed(1)}%
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Faces Detected:</strong> ${result.faces_detected}<br>
+                                    <strong>Verification Time:</strong> ${new Date().toLocaleString()}
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="confidence-bar">
+                                    <div class="confidence-fill" style="width: ${result.similarity_score * 100}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'recognition':
+                    if (result.matches && result.matches.length > 0) {
+                        const match = result.matches[0];
+                        html = `
+                            <div class="alert alert-success">
+                                <h5><i class="fas fa-user-check me-2"></i>Face Recognition Successful!</h5>
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <strong>Identified User:</strong> ${match.name}<br>
+                                        <strong>User ID:</strong> ${match.user_id}<br>
+                                        <strong>Confidence:</strong> ${(match.similarity_score * 100).toFixed(1)}%
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Faces Detected:</strong> ${result.faces_detected}<br>
+                                        <strong>Recognition Time:</strong> ${new Date().toLocaleString()}
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="confidence-bar">
+                                        <div class="confidence-fill" style="width: ${match.similarity_score * 100}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        html = `
+                            <div class="alert alert-warning">
+                                <h5><i class="fas fa-user-times me-2"></i>No Match Found</h5>
+                                <p>No registered users match the uploaded face image.</p>
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <strong>Faces Detected:</strong> ${result.faces_detected}<br>
+                                        <strong>Recognition Time:</strong> ${new Date().toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    break;
+                    
+                case 'users':
+                    if (result.users && result.users.length > 0) {
+                        html = `
+                            <div class="alert alert-info">
+                                <h5><i class="fas fa-users me-2"></i>Registered Users (${result.users.length})</h5>
+                                <div class="row mt-3">
+                        `;
+                        result.users.forEach(user => {
+                            html += `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title">${user.name}</h6>
+                                            <p class="card-text small">
+                                                <strong>ID:</strong> ${user.user_id}<br>
+                                                <strong>Registered:</strong> ${new Date(user.created_at).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += `
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        html = `
+                            <div class="alert alert-info">
+                                <h5><i class="fas fa-users me-2"></i>No Registered Users</h5>
+                                <p>No users have been registered in the face recognition system yet.</p>
+                            </div>
+                        `;
+                    }
+                    break;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Add input listeners for face recognition form validation
+        document.addEventListener('DOMContentLoaded', function() {
+            const userId = document.getElementById('userId');
+            const userName = document.getElementById('userName');
+            const verifyUserId = document.getElementById('verifyUserId');
+            
+            if (userId) userId.addEventListener('input', () => enableFaceButton('registerFaceBtn', 'face1'));
+            if (userName) userName.addEventListener('input', () => enableFaceButton('registerFaceBtn', 'face1'));
+            if (verifyUserId) verifyUserId.addEventListener('input', () => enableFaceButton('verifyFaceBtn', 'face2'));
+        });
+        
+        // ================ END FACE RECOGNITION FUNCTIONS ================
 
         async function processRequest(endpoint, file, tabNumber, type) {
             if (!file) {
