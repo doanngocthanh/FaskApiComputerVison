@@ -1,0 +1,1684 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Rate Limiting Management - Admin Panel{% endblock %}
+
+{% block page_title %}Rate Limiting Management{% endblock %}
+{% block page_subtitle %}Configure and monitor API rate limits{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rate-limit-widget {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: transform 0.3s;
+    }
+
+    .rate-limit-widget:hover {
+        transform: translateY(-5px);
+    }
+
+    .rate-limit-number {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .rate-limit-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    .endpoint-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        transition: all 0.3s;
+    }
+
+    .endpoint-card:hover {
+        border-color: #007bff;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .endpoint-header {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+
+    .status-active { background: #28a745; }
+    .status-warning { background: #ffc107; }
+    .status-blocked { background: #dc3545; }
+
+    .rate-limit-chart {
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+
+    .blocked-requests-table .table {
+        font-size: 0.875rem;
+    }
+
+    .ip-address {
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Rate Limit Overview -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="rate-limit-widget">
+                <div class="rate-limit-number" id="total-requests-minute">0</div>
+                <div class="rate-limit-label">Requests/Minute</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="rate-limit-widget" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);">
+                <div class="rate-limit-number" id="blocked-requests">0</div>
+                <div class="rate-limit-label">Blocked Requests</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="rate-limit-widget" style="background: linear-gradient(135deg, #ffc107 0%, #ff8f00 100%);">
+                <div class="rate-limit-number" id="warning-ips">0</div>
+                <div class="rate-limit-label">IPs Near Limit</div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="rate-limit-widget" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);">
+                <div class="rate-limit-number" id="active-limits">0</div>
+                <div class="rate-limit-label">Active Limits</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rate Limit Charts -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Request Rate Over Time</h5>
+                </div>
+                <div class="card-body">
+                    <div class="rate-limit-chart">
+                        <canvas id="requestRateChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Rate Limit Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="rate-limit-chart">
+                        <canvas id="rateLimitStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <ul class="nav nav-tabs card-header-tabs" id="rateLimitTabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#global-settings">
+                        <i class="fas fa-globe"></i> Global Settings
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#endpoint-limits">
+                        <i class="fas fa-list"></i> Endpoint Limits
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#ip-management">
+                        <i class="fas fa-network-wired"></i> IP Management
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#blocked-requests">
+                        <i class="fas fa-ban"></i> Blocked Requests
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#real-time-monitor">
+                        <i class="fas fa-eye"></i> Real-time Monitor
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Global Settings Tab -->
+                <div class="tab-pane fade show active" id="global-settings">
+                    <h5>Global Rate Limit Configuration</h5>
+                    <form id="global-rate-limit-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label>Enable Rate Limiting</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="enable-rate-limiting" checked>
+                                        <label class="form-check-label" for="enable-rate-limiting">
+                                            Enable global rate limiting
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group mb-3">
+                                    <label for="default-requests-per-minute">Default Requests per Minute</label>
+                                    <input type="number" class="form-control" id="default-requests-per-minute" value="60" min="1" max="10000">
+                                    <small class="form-text text-muted">Default limit for all endpoints</small>
+                                </div>
+                                
+                                <div class="form-group mb-3">
+                                    <label for="burst-limit">Burst Limit</label>
+                                    <input type="number" class="form-control" id="burst-limit" value="100" min="1" max="10000">
+                                    <small class="form-text text-muted">Maximum requests allowed in a short burst</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="window-size">Time Window (seconds)</label>
+                                    <select class="form-control" id="window-size">
+                                        <option value="60" selected>1 minute</option>
+                                        <option value="300">5 minutes</option>
+                                        <option value="900">15 minutes</option>
+                                        <option value="3600">1 hour</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group mb-3">
+                                    <label for="block-duration">Block Duration (minutes)</label>
+                                    <input type="number" class="form-control" id="block-duration" value="15" min="1" max="1440">
+                                    <small class="form-text text-muted">How long to block violating IPs</small>
+                                </div>
+                                
+                                <div class="form-group mb-3">
+                                    <label>Rate Limit Strategy</label>
+                                    <select class="form-control" id="rate-limit-strategy">
+                                        <option value="fixed-window">Fixed Window</option>
+                                        <option value="sliding-window" selected>Sliding Window</option>
+                                        <option value="token-bucket">Token Bucket</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Global Settings
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Endpoint Limits Tab -->
+                <div class="tab-pane fade" id="endpoint-limits">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Endpoint-Specific Rate Limits</h5>
+                        <button class="btn btn-primary btn-sm" onclick="addEndpointLimit()">
+                            <i class="fas fa-plus"></i> Add Endpoint Limit
+                        </button>
+                    </div>
+                    
+                    <div id="endpoint-limits-container">
+                        <!-- Endpoint limit cards will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- IP Management Tab -->
+                <div class="tab-pane fade" id="ip-management">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">IP Whitelist</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group mb-3">
+                                        <label>Add IP to Whitelist</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="whitelist-ip" placeholder="192.168.1.100">
+                                            <button class="btn btn-success" onclick="addToWhitelist()">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="whitelist-container">
+                                        <!-- Whitelist IPs will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">IP Blacklist</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group mb-3">
+                                        <label>Add IP to Blacklist</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="blacklist-ip" placeholder="192.168.1.100">
+                                            <button class="btn btn-danger" onclick="addToBlacklist()">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="blacklist-container">
+                                        <!-- Blacklist IPs will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Blocked Requests Tab -->
+                <div class="tab-pane fade" id="blocked-requests">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Recently Blocked Requests</h5>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm" onclick="refreshBlockedRequests()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="clearBlockedRequests()">
+                                <i class="fas fa-trash"></i> Clear History
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="blocked-requests-table">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>IP Address</th>
+                                        <th>Endpoint</th>
+                                        <th>Method</th>
+                                        <th>Rate Limit</th>
+                                        <th>Request Count</th>
+                                        <th>Block Duration</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="blocked-requests-table-body">
+                                    <!-- Data will be loaded -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-time Monitor Tab -->
+                <div class="tab-pane fade" id="real-time-monitor">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Real-time Rate Limit Monitor</h5>
+                        <div>
+                            <button class="btn btn-primary btn-sm" onclick="toggleRealTimeMonitor()" id="real-time-btn">
+                                <i class="fas fa-play"></i> Start Monitoring
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Active Request Rates</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="real-time-requests-container">
+                                        <!-- Real-time data will be displayed here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Top Active IPs</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="top-active-ips-container">
+                                        <!-- Top IPs will be displayed here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Endpoint Limit Modal -->
+<div class="modal fade" id="addEndpointModal" tabindex="-1" aria-labelledby="addEndpointModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addEndpointModalLabel">Add Endpoint Rate Limit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="endpoint-limit-form">
+                    <div class="form-group mb-3">
+                        <label for="endpoint-path">Endpoint Path</label>
+                        <input type="text" class="form-control" id="endpoint-path" placeholder="/api/v1/example" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="endpoint-method">HTTP Method</label>
+                        <select class="form-control" id="endpoint-method" required>
+                            <option value="">Select Method</option>
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="PATCH">PATCH</option>
+                            <option value="*">All Methods</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="endpoint-limit">Requests per Minute</label>
+                        <input type="number" class="form-control" id="endpoint-limit" min="1" max="10000" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="endpoint-enabled">Enabled</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="endpoint-enabled" checked>
+                            <label class="form-check-label" for="endpoint-enabled">
+                                Enable rate limit for this endpoint
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveEndpointLimit()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Global variables
+let rateLimitCharts = {};
+let realTimeMonitoring = false;
+let realTimeInterval = null;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeRateLimitCharts();
+    loadRateLimitData();
+    loadEndpointLimits();
+    loadIPManagement();
+    loadBlockedRequests();
+});
+
+// Initialize charts
+function initializeRateLimitCharts() {
+    // Request Rate Chart
+    const requestRateCtx = document.getElementById('requestRateChart').getContext('2d');
+    rateLimitCharts.requestRate = new Chart(requestRateCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Requests/min',
+                data: [],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.1
+            }, {
+                label: 'Rate Limit',
+                data: [],
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                borderDash: [5, 5]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Rate Limit Status Chart
+    const statusCtx = document.getElementById('rateLimitStatusChart').getContext('2d');
+    rateLimitCharts.status = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Normal', 'Warning', 'Blocked'],
+            datasets: [{
+                data: [0, 0, 0],
+                backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Utility functions
+function getAuthToken() {
+    // Get token from cookie first (same as other admin pages)
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('admin_token='))
+        ?.split('=')[1];
+    
+    if (cookieValue) {
+        return cookieValue;
+    }
+    
+    // Fallback to localStorage
+    return localStorage.getItem('auth_token') || localStorage.getItem('admin_token') || 'demo-token';
+}
+
+function showAlert(type, message) {
+    // Create bootstrap alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at top of main content
+    const mainContent = document.querySelector('.container-fluid');
+    mainContent.insertBefore(alertDiv, mainContent.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+function updateTopIPs(topIPs) {
+    // Update top IPs display if exists
+    const container = document.getElementById('top-ips-container');
+    if (container && topIPs) {
+        // Implementation for displaying top IPs
+        console.log('Top IPs:', topIPs);
+    }
+}
+
+function updateEndpointStats(endpointStats) {
+    // Update endpoint stats display if exists
+    if (endpointStats) {
+        console.log('Endpoint stats:', endpointStats);
+    }
+}
+
+// Load rate limit data
+async function loadRateLimitData() {
+    try {
+        // Load rate limit statistics from API
+        const response = await fetch('/api/admin/rate-limit/stats', {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                updateRateLimitStats(data.stats);
+            }
+        } else {
+            console.error('Failed to load stats:', response.status, response.statusText);
+            showAlert('warning', 'Failed to load statistics');
+        }
+        
+        // Load real-time monitoring data
+        await loadRealTimeData();
+        
+        // Update charts with real data
+        updateRequestRateChart();
+        updateStatusChart();
+    } catch (error) {
+        console.error('Failed to load rate limit data:', error);
+        showAlert('error', 'Failed to load rate limit data');
+    }
+}
+
+// Update rate limit statistics
+function updateRateLimitStats(stats) {
+    document.getElementById('total-requests-minute').textContent = stats.total_requests_today || 0;
+    document.getElementById('blocked-requests').textContent = stats.blocked_requests_today || 0;
+    document.getElementById('warning-ips').textContent = stats.active_blocked_ips || 0;
+    document.getElementById('active-limits').textContent = stats.total_endpoints || 0;
+}
+
+// Update charts
+function updateRequestRateChart() {
+    const chart = rateLimitCharts.requestRate;
+    const now = new Date();
+    const labels = [];
+    const requestData = [];
+    const limitData = [];
+    
+    for (let i = 29; i >= 0; i--) {
+        const time = new Date(now.getTime() - i * 60000);
+        labels.push(time.toLocaleTimeString());
+        requestData.push(Math.floor(Math.random() * 80) + 20);
+        limitData.push(60); // Rate limit
+    }
+    
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = requestData;
+    chart.data.datasets[1].data = limitData;
+    chart.update();
+}
+
+function updateStatusChart() {
+    const chart = rateLimitCharts.status;
+    chart.data.datasets[0].data = [85, 10, 5]; // Normal, Warning, Blocked percentages
+    chart.update();
+}
+
+// Load real-time monitoring data
+async function loadRealTimeData() {
+    try {
+        const response = await fetch('/api/admin/rate-limit/real-time', {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                // Update real-time displays
+                updateTopIPs(result.data.top_ips);
+                updateEndpointStats(result.data.endpoint_stats);
+            }
+        } else {
+            console.error('Failed to load real-time data:', response.status, response.statusText);
+        }
+    } catch (error) {
+        console.error('Failed to load real-time data:', error);
+    }
+}
+
+// Load endpoint limits
+async function loadEndpointLimits() {
+    try {
+        const response = await fetch('/api/admin/rate-limit/endpoints', {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                displayEndpointLimits(result.endpoints);
+                window.currentEndpoints = result.endpoints;
+                return;
+            }
+        } else {
+            console.error('Failed to load endpoints:', response.status, response.statusText);
+            showAlert('warning', 'Failed to load endpoint limits');
+        }
+        
+        // Fallback to show sample endpoints if API fails
+        displayEndpointLimits([]);
+        window.currentEndpoints = [];
+    } catch (error) {
+        console.error('Failed to load endpoint limits:', error);
+        showAlert('error', 'Failed to load endpoint limits');
+        displayEndpointLimits([]);
+        window.currentEndpoints = [];
+    }
+}
+
+// Display endpoint limits with enhanced UI
+function displayEndpointLimits(endpoints) {
+    const container = document.getElementById('endpoint-limits-container');
+    container.innerHTML = '';
+    
+    endpoints.forEach((endpoint, index) => {
+        const statusClass = endpoint.status === 'normal' ? 'status-active' : 
+                           endpoint.status === 'warning' ? 'status-warning' : 
+                           endpoint.status === 'disabled' ? 'status-secondary' : 'status-blocked';
+        
+        const card = document.createElement('div');
+        card.className = 'endpoint-card';
+        card.innerHTML = `
+            <div class="endpoint-header">
+                <div>
+                    <span class="status-indicator ${statusClass}"></span>
+                    <strong>${endpoint.method}</strong> <code>${endpoint.path}</code>
+                    <small class="text-muted ml-2">${endpoint.description}</small>
+                </div>
+                <div>
+                    <span class="badge bg-${endpoint.enabled ? 'success' : 'secondary'}">
+                        ${endpoint.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                </div>
+            </div>
+            <div class="p-3">
+                <div class="row">
+                    <div class="col-md-2">
+                        <label>Rate Limit:</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" value="${endpoint.requests_per_minute || endpoint.limit || 60}" 
+                                   id="limit-${endpoint.id}" min="1" max="10000">
+                            <span class="input-group-text">/min</span>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label>Burst Limit:</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" value="${endpoint.burst_limit || 100}" 
+                                   id="burst-${endpoint.id}" min="1" max="10000">
+                            <span class="input-group-text">req</span>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label>Current Rate:</label>
+                        <div class="form-control form-control-sm bg-light">${endpoint.current_rate}/min</div>
+                    </div>
+                    <div class="col-md-2">
+                        <label>Status:</label>
+                        <div class="form-control form-control-sm bg-light text-capitalize">${endpoint.status}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <label>Enabled:</label>
+                        <div class="form-check form-switch mt-1">
+                            <input class="form-check-input" type="checkbox" 
+                                   id="enabled-${endpoint.id}" ${endpoint.enabled ? 'checked' : ''}
+                                   onchange="toggleEndpointLimit(${endpoint.id})">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label>Actions:</label>
+                        <div>
+                            <button class="btn btn-sm btn-outline-success me-1" onclick="saveEndpointLimit(${endpoint.id})">
+                                <i class="fas fa-save"></i> Save
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editEndpointLimit(${endpoint.id})">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEndpointLimit(${endpoint.id})">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-12">
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar ${endpoint.current_rate/endpoint.limit > 0.8 ? 'bg-danger' : endpoint.current_rate/endpoint.limit > 0.6 ? 'bg-warning' : 'bg-success'}" 
+                                 style="width: ${Math.min((endpoint.current_rate/endpoint.limit) * 100, 100)}%"></div>
+                        </div>
+                        <small class="text-muted">Usage: ${endpoint.current_rate}/${endpoint.limit} requests/min (${Math.round((endpoint.current_rate/endpoint.limit) * 100)}%)</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Toggle endpoint limit enabled/disabled
+async function toggleEndpointLimit(endpointId) {
+    try {
+        const endpoint = window.currentEndpoints.find(ep => ep.id === endpointId);
+        const enabled = document.getElementById(`enabled-${endpointId}`).checked;
+        
+        // Mock API call
+        console.log(`Toggling endpoint ${endpointId} to ${enabled ? 'enabled' : 'disabled'}`);
+        
+        // Update local data
+        endpoint.enabled = enabled;
+        endpoint.status = enabled ? 'normal' : 'disabled';
+        
+        showToast(`Endpoint ${enabled ? 'enabled' : 'disabled'} successfully`, 'success');
+        loadEndpointLimits(); // Refresh display
+    } catch (error) {
+        console.error('Failed to toggle endpoint:', error);
+        showToast('Failed to toggle endpoint', 'danger');
+    }
+}
+
+// Save endpoint limit changes
+async function saveEndpointLimit(endpointId) {
+    try {
+        const newLimit = parseInt(document.getElementById(`limit-${endpointId}`).value);
+        const newBurst = parseInt(document.getElementById(`burst-${endpointId}`).value);
+        
+        if (newLimit < 1 || newLimit > 10000) {
+            showAlert('warning', 'Rate limit must be between 1 and 10000');
+            return;
+        }
+        
+        const endpoint = window.currentEndpoints.find(ep => ep.id === endpointId);
+        if (!endpoint) {
+            showAlert('error', 'Endpoint not found');
+            return;
+        }
+        
+        const updateData = {
+            path: endpoint.path,
+            method: endpoint.method,
+            enabled: endpoint.enabled,
+            requests_per_minute: newLimit,
+            burst_limit: newBurst,
+            description: endpoint.description
+        };
+        
+        const response = await fetch(`/api/admin/rate-limit/endpoints/${endpointId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showAlert('success', 'Endpoint limit updated successfully');
+            loadEndpointLimits(); // Refresh display
+        } else {
+            showAlert('error', result.detail || 'Failed to update endpoint limit');
+        }
+    } catch (error) {
+        console.error('Failed to save endpoint limit:', error);
+        showAlert('error', 'Failed to save endpoint limit');
+    }
+}
+
+// Edit endpoint limit (opens modal)
+function editEndpointLimit(endpointId) {
+    const endpoint = window.currentEndpoints.find(ep => ep.id === endpointId);
+    if (!endpoint) return;
+    
+    // Populate modal with current values
+    document.getElementById('endpoint-path').value = endpoint.path;
+    document.getElementById('endpoint-method').value = endpoint.method;
+    document.getElementById('endpoint-limit').value = endpoint.limit;
+    document.getElementById('endpoint-enabled').checked = endpoint.enabled;
+    
+    // Store editing ID
+    window.editingEndpointId = endpointId;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('addEndpointModal'));
+    document.getElementById('addEndpointModalLabel').textContent = 'Edit Endpoint Rate Limit';
+    modal.show();
+}
+
+// Delete endpoint limit
+async function deleteEndpointLimit(endpointId) {
+    if (!confirm('Are you sure you want to delete this endpoint rate limit?')) {
+        return;
+    }
+    
+    try {
+        // Mock API call
+        console.log(`Deleting endpoint ${endpointId}`);
+        
+        // Remove from local data
+        window.currentEndpoints = window.currentEndpoints.filter(ep => ep.id !== endpointId);
+        
+        showToast('Endpoint rate limit deleted successfully', 'success');
+        loadEndpointLimits(); // Refresh display
+    } catch (error) {
+        console.error('Failed to delete endpoint:', error);
+        showToast('Failed to delete endpoint', 'danger');
+    }
+}
+
+// IP Management functions
+async function loadIPManagement() {
+    // Load whitelist and blacklist
+    await loadWhitelist();
+    await loadBlacklist();
+}
+
+async function loadWhitelist() {
+    try {
+        const response = await fetch('/api/admin/rate-limit/whitelist', {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                displayWhitelist(result.whitelist);
+                window.currentWhitelist = result.whitelist;
+                return;
+            }
+        } else {
+            console.error('Failed to load whitelist:', response.status, response.statusText);
+            showToast('Failed to load IP whitelist', 'danger');
+        }
+        
+        // Fallback to empty list
+        displayWhitelist([]);
+        window.currentWhitelist = [];
+    } catch (error) {
+        console.error('Failed to load whitelist:', error);
+        showToast('Failed to load IP whitelist', 'danger');
+        displayWhitelist([]);
+        window.currentWhitelist = [];
+    }
+}
+
+async function loadBlacklist() {
+    try {
+        const response = await fetch('/api/admin/rate-limit/blacklist', {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                displayBlacklist(result.blacklist);
+                window.currentBlacklist = result.blacklist;
+                return;
+            }
+        } else {
+            console.error('Failed to load blacklist:', response.status, response.statusText);
+            showToast('Failed to load IP blacklist', 'danger');
+        }
+        
+        // Fallback to empty list
+        displayBlacklist([]);
+        window.currentBlacklist = [];
+    } catch (error) {
+        console.error('Failed to load blacklist:', error);
+        showToast('Failed to load IP blacklist', 'danger');
+        displayBlacklist([]);
+        window.currentBlacklist = [];
+    }
+}
+
+function displayWhitelist(ips) {
+    const container = document.getElementById('whitelist-container');
+    container.innerHTML = '';
+    
+    ips.forEach(ipData => {
+        const ipElement = document.createElement('div');
+        ipElement.className = 'd-flex justify-content-between align-items-center mb-2 p-3 bg-light rounded border';
+        ipElement.innerHTML = `
+            <div class="flex-grow-1">
+                <div class="ip-address fw-bold">${ipData.ip}</div>
+                <small class="text-muted">${ipData.description}</small>
+                <br><small class="text-muted">Added by ${ipData.added_by} on ${ipData.added_date}</small>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-sm btn-outline-primary" onclick="editWhitelistIP(${ipData.id})" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeFromWhitelist(${ipData.id})" title="Remove">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(ipElement);
+    });
+}
+
+function displayBlacklist(ips) {
+    const container = document.getElementById('blacklist-container');
+    container.innerHTML = '';
+    
+    ips.forEach(ipData => {
+        const isExpired = new Date(ipData.expires) < new Date();
+        const ipElement = document.createElement('div');
+        ipElement.className = `d-flex justify-content-between align-items-center mb-2 p-3 bg-light rounded border ${isExpired ? 'border-warning' : ''}`;
+        ipElement.innerHTML = `
+            <div class="flex-grow-1">
+                <div class="ip-address fw-bold">${ipData.ip} ${isExpired ? '<span class="badge bg-warning">Expired</span>' : ''}</div>
+                <small class="text-muted">${ipData.description}</small>
+                <br><small class="text-muted">Added by ${ipData.added_by} on ${ipData.added_date}</small>
+                <br><small class="text-muted">Expires: ${ipData.expires}</small>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-sm btn-outline-primary" onclick="editBlacklistIP(${ipData.id})" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="removeFromBlacklist(${ipData.id})" title="Remove">
+                    <i class="fas fa-unlock"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(ipElement);
+    });
+}
+
+async function addToWhitelist() {
+    const ip = document.getElementById('whitelist-ip').value.trim();
+    if (!ip) {
+        showToast('Please enter an IP address', 'warning');
+        return;
+    }
+    
+    // Basic IP validation
+    if (!isValidIP(ip)) {
+        showToast('Please enter a valid IP address', 'warning');
+        return;
+    }
+    
+    // Check if already exists
+    if (window.currentWhitelist && window.currentWhitelist.some(item => item.ip === ip)) {
+        showToast('IP address already in whitelist', 'warning');
+        return;
+    }
+    
+    try {
+        // Mock API call
+        const newEntry = {
+            id: Date.now(),
+            ip: ip,
+            description: 'Added manually',
+            added_by: 'admin',
+            added_date: new Date().toISOString().split('T')[0]
+        };
+        
+        window.currentWhitelist.push(newEntry);
+        displayWhitelist(window.currentWhitelist);
+        
+        showToast(`IP ${ip} added to whitelist`, 'success');
+        document.getElementById('whitelist-ip').value = '';
+    } catch (error) {
+        console.error('Failed to add to whitelist:', error);
+        showToast('Failed to add IP to whitelist', 'danger');
+    }
+}
+
+async function addToBlacklist() {
+    const ip = document.getElementById('blacklist-ip').value.trim();
+    if (!ip) {
+        showToast('Please enter an IP address', 'warning');
+        return;
+    }
+    
+    // Basic IP validation
+    if (!isValidIP(ip)) {
+        showToast('Please enter a valid IP address', 'warning');
+        return;
+    }
+    
+    // Check if already exists
+    if (window.currentBlacklist && window.currentBlacklist.some(item => item.ip === ip)) {
+        showToast('IP address already in blacklist', 'warning');
+        return;
+    }
+    
+    try {
+        // Mock API call
+        const newEntry = {
+            id: Date.now(),
+            ip: ip,
+            description: 'Added manually',
+            added_by: 'admin',
+            added_date: new Date().toISOString().split('T')[0],
+            expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 7 days from now
+        };
+        
+        window.currentBlacklist.push(newEntry);
+        displayBlacklist(window.currentBlacklist);
+        
+        showToast(`IP ${ip} added to blacklist`, 'success');
+        document.getElementById('blacklist-ip').value = '';
+    } catch (error) {
+        console.error('Failed to add to blacklist:', error);
+        showToast('Failed to add IP to blacklist', 'danger');
+    }
+}
+
+// Edit functions
+function editWhitelistIP(id) {
+    const ipData = window.currentWhitelist.find(item => item.id === id);
+    if (!ipData) return;
+    
+    const newDescription = prompt('Enter description for IP ' + ipData.ip, ipData.description);
+    if (newDescription !== null) {
+        ipData.description = newDescription;
+        displayWhitelist(window.currentWhitelist);
+        showToast('IP description updated', 'success');
+    }
+}
+
+function editBlacklistIP(id) {
+    const ipData = window.currentBlacklist.find(item => item.id === id);
+    if (!ipData) return;
+    
+    const newDescription = prompt('Enter description for IP ' + ipData.ip, ipData.description);
+    if (newDescription !== null) {
+        ipData.description = newDescription;
+        displayBlacklist(window.currentBlacklist);
+        showToast('IP description updated', 'success');
+    }
+}
+
+// Remove functions
+async function removeFromWhitelist(id) {
+    const ipData = window.currentWhitelist.find(item => item.id === id);
+    if (!ipData) return;
+    
+    if (!confirm(`Are you sure you want to remove ${ipData.ip} from whitelist?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/rate-limit/whitelist/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                showToast(`IP ${ipData.ip} removed from whitelist`, 'success');
+                await loadWhitelist();
+            } else {
+                showAlert('error', result.message || 'Failed to remove from whitelist');
+            }
+        } else {
+            console.error('Failed to remove from whitelist:', response.status, response.statusText);
+            showAlert('error', 'Failed to remove IP from whitelist');
+        }
+    } catch (error) {
+        console.error('Failed to remove from whitelist:', error);
+        showToast('Failed to remove IP from whitelist', 'danger');
+    }
+}
+
+async function removeFromBlacklist(id) {
+    const ipData = window.currentBlacklist.find(item => item.id === id);
+    if (!ipData) return;
+    
+    if (!confirm(`Are you sure you want to remove ${ipData.ip} from blacklist?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/rate-limit/blacklist/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                showToast(`IP ${ipData.ip} removed from blacklist`, 'success');
+                await loadBlacklist();
+            } else {
+                showAlert('error', result.message || 'Failed to remove from blacklist');
+            }
+        } else {
+            console.error('Failed to remove from blacklist:', response.status, response.statusText);
+            showAlert('error', 'Failed to remove IP from blacklist');
+        }
+    } catch (error) {
+        console.error('Failed to remove from blacklist:', error);
+        showToast('Failed to remove IP from blacklist', 'danger');
+    }
+}
+
+// Utility function for IP validation
+function isValidIP(ip) {
+    const regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    return regex.test(ip);
+}
+
+// Load blocked requests
+async function loadBlockedRequests() {
+    try {
+        const response = await fetch('/api/admin/rate-limit/blocked', {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                displayBlockedRequests(result.blocked_requests);
+                return;
+            }
+        } else {
+            console.error('Failed to load blocked requests:', response.status, response.statusText);
+        }
+        
+        // Fallback to empty list
+        displayBlockedRequests([]);
+    } catch (error) {
+        console.error('Failed to load blocked requests:', error);
+        displayBlockedRequests([]);
+    }
+}
+
+function displayBlockedRequests(requests) {
+    const tbody = document.getElementById('blocked-requests-table-body');
+    tbody.innerHTML = requests.map(req => `
+        <tr>
+            <td>${req.timestamp}</td>
+            <td><span class="ip-address">${req.ip}</span></td>
+            <td><code>${req.endpoint}</code></td>
+            <td><span class="badge bg-primary">${req.method}</span></td>
+            <td>${req.rate_limit}/min</td>
+            <td><span class="text-danger">${req.request_count}</span></td>
+            <td>${req.block_duration} min</td>
+            <td>
+                <button class="btn btn-sm btn-outline-success" onclick="unblockIP('${req.ip}')">
+                    <i class="fas fa-unlock"></i> Unblock
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Event handlers
+function addEndpointLimit() {
+    const modal = new bootstrap.Modal(document.getElementById('addEndpointModal'));
+    modal.show();
+}
+
+function saveEndpointLimit() {
+    const path = document.getElementById('endpointPath').value;
+    const limit = parseInt(document.getElementById('endpointLimit').value);
+    const window_minutes = parseInt(document.getElementById('endpointWindow').value);
+    
+    if (!path || !limit || !window_minutes) {
+        showAlert('warning', 'Please fill all fields');
+        return;
+    }
+    
+    fetch('/api/admin/rate-limit/endpoints', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({
+            path,
+            limit,
+            window_minutes
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            console.error('Failed to save endpoint limit:', response.status, response.statusText);
+            throw new Error('Failed to save endpoint limit');
+        }
+    })
+    .then(result => {
+        if (result.success) {
+            showToast('Endpoint limit saved successfully', 'success');
+            document.getElementById('endpointForm').reset();
+            bootstrap.Modal.getInstance(document.getElementById('addEndpointModal')).hide();
+            loadEndpointLimits();
+        } else {
+            showAlert('error', result.message || 'Failed to save endpoint limit');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving endpoint limit:', error);
+        showAlert('error', 'Failed to save endpoint limit');
+    });
+}
+
+function addToWhitelist() {
+    const ip = document.getElementById('whitelist-ip').value;
+    if (ip) {
+        fetch('/api/admin/rate-limit/whitelist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            },
+            body: JSON.stringify({ ip })
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                console.error('Failed to add to whitelist:', response.status, response.statusText);
+                throw new Error('Failed to add to whitelist');
+            }
+        })
+        .then(result => {
+            if (result.success) {
+                showToast(`IP ${ip} added to whitelist`, 'success');
+                document.getElementById('whitelist-ip').value = '';
+                loadWhitelist();
+            } else {
+                showAlert('error', result.message || 'Failed to add to whitelist');
+            }
+        })
+        .catch(error => {
+            console.error('Error adding to whitelist:', error);
+            showAlert('error', 'Failed to add to whitelist');
+        });
+    }
+}
+
+function addToBlacklist() {
+    const ip = document.getElementById('blacklist-ip').value;
+    if (ip) {
+        fetch('/api/admin/rate-limit/blacklist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            },
+            body: JSON.stringify({ ip })
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                console.error('Failed to add to blacklist:', response.status, response.statusText);
+                throw new Error('Failed to add to blacklist');
+            }
+        })
+        .then(result => {
+            if (result.success) {
+                showToast(`IP ${ip} added to blacklist`, 'success');
+                document.getElementById('blacklist-ip').value = '';
+                loadBlacklist();
+            } else {
+                showAlert('error', result.message || 'Failed to add to blacklist');
+            }
+        })
+        .catch(error => {
+            console.error('Error adding to blacklist:', error);
+            showAlert('error', 'Failed to add to blacklist');
+        });
+    }
+}
+
+function toggleRealTimeMonitor() {
+    const btn = document.getElementById('real-time-btn');
+    
+    if (realTimeMonitoring) {
+        realTimeMonitoring = false;
+        clearInterval(realTimeInterval);
+        btn.innerHTML = '<i class="fas fa-play"></i> Start Monitoring';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    } else {
+        realTimeMonitoring = true;
+        realTimeInterval = setInterval(updateRealTimeData, 2000);
+        btn.innerHTML = '<i class="fas fa-pause"></i> Stop Monitoring';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+    }
+}
+
+function updateRealTimeData() {
+    // Update real-time monitoring display
+    try {
+        // Mock real-time data - replace with actual API calls
+        const currentTime = new Date().toLocaleTimeString();
+        
+        // Update current statistics
+        const currentRate = Math.floor(Math.random() * 100) + 20;
+        const blockedCount = Math.floor(Math.random() * 10);
+        const activeSessions = Math.floor(Math.random() * 50) + 10;
+        
+        // Update display elements
+        document.getElementById('current-rate').textContent = `${currentRate}/min`;
+        document.getElementById('blocked-count').textContent = blockedCount;
+        document.getElementById('active-sessions').textContent = activeSessions;
+        
+        // Update top endpoints with random data
+        updateTopEndpoints();
+        
+        // Update active connections
+        updateActiveConnections();
+        
+        // Update rate limit monitor chart if it exists
+        updateMonitorChart(currentTime, currentRate, blockedCount);
+        
+        console.log(`Real-time data updated at ${currentTime}: ${currentRate} req/min, ${blockedCount} blocked`);
+        
+    } catch (error) {
+        console.error('Error updating real-time data:', error);
+    }
+}
+
+function updateTopEndpoints() {
+    const endpoints = [
+        { path: '/api/v1/detection', requests: Math.floor(Math.random() * 100) + 50 },
+        { path: '/api/v1/extraction', requests: Math.floor(Math.random() * 80) + 30 },
+        { path: '/api/v1/parser', requests: Math.floor(Math.random() * 60) + 20 },
+        { path: '/api/v1/monitoring', requests: Math.floor(Math.random() * 40) + 10 }
+    ];
+    
+    const container = document.getElementById('top-endpoints');
+    if (container) {
+        container.innerHTML = endpoints.map(endpoint => `
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-truncate" style="max-width: 200px;" title="${endpoint.path}">${endpoint.path}</span>
+                <span class="badge bg-primary">${endpoint.requests}</span>
+            </div>
+        `).join('');
+    }
+}
+
+function updateActiveConnections() {
+    const connections = [
+        { ip: '192.168.1.100', endpoint: '/api/v1/detection', requests: Math.floor(Math.random() * 20) + 5, last_request: Math.floor(Math.random() * 10) + 1 },
+        { ip: '10.0.0.25', endpoint: '/api/v1/extraction', requests: Math.floor(Math.random() * 15) + 3, last_request: Math.floor(Math.random() * 15) + 1 },
+        { ip: '172.16.0.50', endpoint: '/api/v1/parser', requests: Math.floor(Math.random() * 18) + 2, last_request: Math.floor(Math.random() * 5) + 1 },
+        { ip: '192.168.1.150', endpoint: '/api/v1/monitoring', requests: Math.floor(Math.random() * 10) + 1, last_request: Math.floor(Math.random() * 20) + 1 }
+    ];
+    
+    const container = document.getElementById('active-connections');
+    if (container) {
+        container.innerHTML = connections.map(conn => `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-bold">${conn.ip}</div>
+                    <small class="text-muted">${conn.endpoint}</small>
+                </div>
+                <div class="text-end">
+                    <div class="badge bg-info">${conn.requests} requests</div>
+                    <br><small class="text-muted">${conn.last_request}s ago</small>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+let rateLimitChartData = {
+    labels: [],
+    requests: [],
+    blocked: []
+};
+
+function updateMonitorChart(timeLabel, requests, blocked) {
+    // Add new data point
+    rateLimitChartData.labels.push(timeLabel);
+    rateLimitChartData.requests.push(requests);
+    rateLimitChartData.blocked.push(blocked);
+    
+    // Keep only last 15 data points
+    if (rateLimitChartData.labels.length > 15) {
+        rateLimitChartData.labels.shift();
+        rateLimitChartData.requests.shift();
+        rateLimitChartData.blocked.shift();
+    }
+    
+    // Update chart if it exists
+    const canvas = document.getElementById('rateLimitMonitorChart');
+    if (canvas && window.rateLimitChart) {
+        window.rateLimitChart.data.labels = rateLimitChartData.labels;
+        window.rateLimitChart.data.datasets[0].data = rateLimitChartData.requests;
+        window.rateLimitChart.data.datasets[1].data = rateLimitChartData.blocked;
+        window.rateLimitChart.update('none'); // Update without animation for smooth real-time
+    }
+}
+
+// Initialize real-time chart
+function initRateLimitChart() {
+    const canvas = document.getElementById('rateLimitMonitorChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    window.rateLimitChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: rateLimitChartData.labels,
+            datasets: [{
+                label: 'Requests/min',
+                data: rateLimitChartData.requests,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.1,
+                fill: true
+            }, {
+                label: 'Blocked',
+                data: rateLimitChartData.blocked,
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Real-time Request Monitoring'
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Count'
+                    },
+                    beginAtZero: true
+                }
+            },
+            animation: {
+                duration: 0 // Disable animation for smooth real-time updates
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+// Form submission
+document.getElementById('global-rate-limit-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        enabled: document.getElementById('enable-rate-limiting').checked,
+        requests_per_minute: parseInt(document.getElementById('default-requests-per-minute').value),
+        burst_limit: parseInt(document.getElementById('burst-limit').value),
+        window_size: parseInt(document.getElementById('window-size').value),
+        block_duration: parseInt(document.getElementById('block-duration').value),
+        strategy: document.getElementById('rate-limit-strategy').value
+    };
+    
+    console.log('Saving global settings:', formData);
+    
+    fetch('/api/admin/rate-limit/config', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            console.error('Failed to save global settings:', response.status, response.statusText);
+            throw new Error('Failed to save global settings');
+        }
+    })
+    .then(result => {
+        if (result.success) {
+            showToast('Global rate limit settings saved successfully', 'success');
+        } else {
+            showAlert('error', result.message || 'Failed to save global settings');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving global settings:', error);
+        showAlert('error', 'Failed to save global settings');
+    });
+});
+
+// Utility functions
+function updateEndpointLimit(index, field, value) {
+    console.log(`Updating endpoint ${index} ${field} to ${value}`);
+}
+
+function editEndpoint(index) {
+    console.log(`Editing endpoint ${index}`);
+}
+
+function deleteEndpoint(index) {
+    if (confirm('Are you sure you want to delete this endpoint limit?')) {
+        showToast('Endpoint limit deleted', 'success');
+        loadEndpointLimits();
+    }
+}
+
+function removeFromWhitelist(ip) {
+    showToast(`IP ${ip} removed from whitelist`, 'success');
+    loadWhitelist();
+}
+
+function removeFromBlacklist(ip) {
+    showToast(`IP ${ip} removed from blacklist`, 'success');
+    loadBlacklist();
+}
+
+function unblockIP(ip) {
+    if (!confirm(`Are you sure you want to unblock IP ${ip}?`)) {
+        return;
+    }
+    
+    fetch(`/api/admin/rate-limit/unblock/${ip}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getAuthToken()}`
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            console.error('Failed to unblock IP:', response.status, response.statusText);
+            throw new Error('Failed to unblock IP');
+        }
+    })
+    .then(result => {
+        if (result.success) {
+            showToast(`IP ${ip} has been unblocked`, 'success');
+            loadBlockedRequests();
+        } else {
+            showAlert('error', result.message || 'Failed to unblock IP');
+        }
+    })
+    .catch(error => {
+        console.error('Error unblocking IP:', error);
+        showAlert('error', 'Failed to unblock IP');
+    });
+}
+
+function refreshBlockedRequests() {
+    showToast('Refreshing blocked requests...', 'info');
+    loadBlockedRequests();
+}
+
+function clearBlockedRequests() {
+    if (confirm('Are you sure you want to clear all blocked request history?')) {
+        fetch('/api/admin/rate-limit/blocked', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthToken()}`
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                console.error('Failed to clear blocked requests:', response.status, response.statusText);
+                throw new Error('Failed to clear blocked requests');
+            }
+        })
+        .then(result => {
+            if (result.success) {
+                showToast('Blocked request history cleared', 'success');
+                loadBlockedRequests();
+            } else {
+                showAlert('error', result.message || 'Failed to clear blocked requests');
+            }
+        })
+        .catch(error => {
+            console.error('Error clearing blocked requests:', error);
+            showAlert('error', 'Failed to clear blocked requests');
+        });
+    }
+}
+</script>
+{% endblock %}

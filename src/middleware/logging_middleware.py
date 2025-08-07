@@ -1,380 +1,449 @@
 """
-OCR Request Logging Middleware
-Tự động log tất cả OCR requests và responses với UUID tracking
+Advanced Logging Middleware
+Middleware ghi log chi tiết các endpoint với khả năng bật/tắt qua admin interface
 """
 
-import time
-import json
-import uuid
 from fastapi import Request, Response
-from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Callable
+import json
+import time
 import logging
+import os
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
+from pathlib import Path
+import threading
+import asyncio
+from collections import defaultdict
 
-# Setup logging
-logger = logging.getLogger(__name__)
-
-class OCRLoggingMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, logging_manager=None):
-        super().__init__(app)
-        self.logging_manager = logging_manager
+class EndpointLogConfig:
+    """Cấu hình log cho từng endpoint"""
     
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Generate unique request ID
-        request_id = str(uuid.uuid4())
+    def __init__(self):
+        self.config_file = "config/logging_config.json"
+        self.log_dir = "logs"
+        self.default_config = {
+            "global_enabled": True,
+            "log_level": "INFO",  # DEBUG, INFO, WARNING, ERROR
+            "max_response_length": 1000,  # Giới hạn độ dài response log
+            "retention_days": 30,
+            "endpoints": {}  # Cấu hình riêng cho từng endpoint
+        }
+        self.config = self.load_config()
+        self.ensure_log_directory()
+    
+    def ensure_log_directory(self):
+        """Tạo thư mục logs nếu chưa có"""
+        Path(self.log_dir).mkdir(parents=True, exist_ok=True)
+        Path("config").mkdir(parents=True, exist_ok=True)
+    
+    def load_config(self) -> Dict:
+        """Load cấu hình từ file"""
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    # Merge với default config
+                    for key, value in self.default_config.items():
+                        if key not in config:
+                            config[key] = value
+                    return config
+            return self.default_config.copy()
+        except Exception as e:
+            logging.error(f"Failed to load logging config: {e}")
+            return self.default_config.copy()
+    
+    def save_config(self):
+        """Lưu cấu hình vào file"""
+        try:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logging.error(f"Failed to save logging config: {e}")
+    
+    def is_endpoint_enabled(self, path: str, method: str) -> bool:
+        """Kiểm tra endpoint có được log không"""
+        if not self.config.get("global_enabled", True):
+            return False
         
-        # Skip logging for non-OCR endpoints
-        if not self._should_log_request(request):
+        endpoint_key = f"{method}:{path}"
+        endpoint_config = self.config["endpoints"].get(endpoint_key, {})
+        
+        return endpoint_config.get("enabled", True)  # Mặc định là enabled
+    
+    def get_endpoint_log_level(self, path: str, method: str) -> str:
+        """Lấy log level cho endpoint"""
+        endpoint_key = f"{method}:{path}"
+        endpoint_config = self.config["endpoints"].get(endpoint_key, {})
+        
+        return endpoint_config.get("log_level", self.config.get("log_level", "INFO"))
+    
+    def should_log_request_body(self, path: str, method: str) -> bool:
+        """Có nên log request body không"""
+        endpoint_key = f"{method}:{path}"
+        endpoint_config = self.config["endpoints"].get(endpoint_key, {})
+        
+        return endpoint_config.get("log_request_body", method in ["POST", "PUT", "PATCH"])
+    
+    def should_log_response_body(self, path: str, method: str) -> bool:
+        """Có nên log response body không"""
+        endpoint_key = f"{method}:{path}"
+        endpoint_config = self.config["endpoints"].get(endpoint_key, {})
+        
+        return endpoint_config.get("log_response_body", True)
+    
+    def update_endpoint_config(self, path: str, method: str, config: Dict):
+        """Cập nhật cấu hình cho endpoint"""
+        endpoint_key = f"{method}:{path}"
+        if endpoint_key not in self.config["endpoints"]:
+            self.config["endpoints"][endpoint_key] = {}
+        
+        self.config["endpoints"][endpoint_key].update(config)
+        self.save_config()
+
+class EndpointLogger:
+    """Logger chuyên dụng cho endpoints"""
+    
+    def __init__(self, log_dir: str = "logs"):
+        self.log_dir = log_dir
+        self.loggers = {}
+        self.setup_loggers()
+    
+    def setup_loggers(self):
+        """Setup các logger cho từng loại log"""
+        # Logger cho request/response
+        self.request_logger = self._create_logger(
+            "endpoint_requests", 
+            os.path.join(self.log_dir, "requests.log")
+        )
+        
+        # Logger cho errors
+        self.error_logger = self._create_logger(
+            "endpoint_errors",
+            os.path.join(self.log_dir, "errors.log")
+        )
+        
+        # Logger cho performance
+        self.performance_logger = self._create_logger(
+            "endpoint_performance",
+            os.path.join(self.log_dir, "performance.log")
+        )
+    
+    def _create_logger(self, name: str, log_file: str):
+        """Tạo logger với file handler"""
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.DEBUG)
+        
+        # Tránh duplicate handlers
+        if logger.handlers:
+            return logger
+        
+        # File handler
+        handler = logging.FileHandler(log_file, encoding='utf-8')
+        formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        
+        return logger
+    
+    def log_request(self, log_data: Dict, level: str = "INFO"):
+        """Log request data"""
+        message = self._format_log_message(log_data)
+        
+        if level == "DEBUG":
+            self.request_logger.debug(message)
+        elif level == "WARNING":
+            self.request_logger.warning(message)
+        elif level == "ERROR":
+            self.request_logger.error(message)
+        else:
+            self.request_logger.info(message)
+    
+    def log_error(self, log_data: Dict):
+        """Log error data"""
+        message = self._format_log_message(log_data)
+        self.error_logger.error(message)
+    
+    def log_performance(self, log_data: Dict):
+        """Log performance data"""
+        message = self._format_log_message(log_data)
+        self.performance_logger.info(message)
+    
+    def _format_log_message(self, log_data: Dict) -> str:
+        """Format log message as JSON string"""
+        try:
+            return json.dumps(log_data, ensure_ascii=False, separators=(',', ':'))
+        except Exception:
+            return str(log_data)
+
+class AdvancedLoggingMiddleware(BaseHTTPMiddleware):
+    """Middleware log chi tiết các endpoint calls"""
+    
+    def __init__(self, app):
+        super().__init__(app)
+        self.config = EndpointLogConfig()
+        self.logger = EndpointLogger()
+        
+        # Stats tracking
+        self.stats = defaultdict(lambda: {
+            "total_requests": 0,
+            "error_count": 0,
+            "avg_response_time": 0,
+            "last_called": None
+        })
+        
+        # Cache để tối ưu performance
+        self.endpoint_cache = {}
+        
+        # Background cleanup task
+        self.start_cleanup_task()
+    
+    def start_cleanup_task(self):
+        """Khởi động task cleanup logs định kỳ"""
+        def cleanup_worker():
+            while True:
+                try:
+                    self.cleanup_old_logs()
+                    time.sleep(24 * 60 * 60)  # Chạy mỗi ngày
+                except Exception as e:
+                    logging.error(f"Log cleanup error: {e}")
+        
+        thread = threading.Thread(target=cleanup_worker, daemon=True)
+        thread.start()
+    
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        request_id = self._generate_request_id()
+        
+        # Extract request info
+        client_ip = self._get_client_ip(request)
+        path = request.url.path
+        method = request.method
+        
+        # Check if logging is enabled for this endpoint
+        if not self.config.is_endpoint_enabled(path, method):
             return await call_next(request)
         
-        start_time = time.time()
+        # Prepare log data
+        log_data = {
+            "request_id": request_id,
+            "timestamp": datetime.now().isoformat(),
+            "client_ip": client_ip,
+            "method": method,
+            "path": path,
+            "query_params": dict(request.query_params),
+            "headers": dict(request.headers),
+            "user_agent": request.headers.get("user-agent", ""),
+        }
         
-        # Prepare request data
-        request_data = await self._prepare_request_data(request, request_id)
+        # Log request body if configured
+        if self.config.should_log_request_body(path, method):
+            try:
+                body = await request.body()
+                if body:
+                    # Limit body size for logging
+                    max_length = self.config.config.get("max_response_length", 1000)
+                    body_str = body.decode('utf-8')[:max_length]
+                    log_data["request_body"] = body_str
+                    if len(body) > max_length:
+                        log_data["request_body_truncated"] = True
+                
+                # Re-create request with body for next middleware
+                request = Request(request.scope, receive=self._create_receive(body))
+            except Exception as e:
+                log_data["request_body_error"] = str(e)
         
         # Process request
-        response = None
-        error_message = ""
-        success = True
-        response_body_data = None
-        
         try:
             response = await call_next(request)
+            end_time = time.time()
+            response_time = end_time - start_time
             
-            # Capture response body for logging (only for JSON responses)
-            if (hasattr(response, 'media_type') and response.media_type == 'application/json') or \
-               (hasattr(response, 'headers') and response.headers.get('content-type', '').startswith('application/json')):
-                
-                # For JSON responses, try to capture the body
-                if hasattr(response, 'body'):
-                    try:
-                        # Get body as bytes and decode
-                        if isinstance(response.body, bytes):
-                            body_str = response.body.decode('utf-8')
-                        else:
-                            body_str = str(response.body)
-                        
-                        # Parse JSON
-                        response_body_data = json.loads(body_str)
-                    except Exception as e:
-                        logger.debug(f"Could not capture response body: {e}")
+            # Update log data with response info
+            log_data.update({
+                "status_code": response.status_code,
+                "response_time_ms": round(response_time * 1000, 2),
+                "response_headers": dict(response.headers)
+            })
             
-            # Check if response indicates error
-            if hasattr(response, 'status_code') and response.status_code >= 400:
-                success = False
-                if response_body_data:
-                    error_message = response_body_data.get('detail', f'HTTP {response.status_code}')
-                else:
-                    error_message = f'HTTP {response.status_code}'
+            # Log response body if configured and not too large
+            if self.config.should_log_response_body(path, method):
+                response_body = await self._extract_response_body(response)
+                if response_body:
+                    max_length = self.config.config.get("max_response_length", 1000)
+                    if len(response_body) <= max_length:
+                        log_data["response_body"] = response_body
+                    else:
+                        log_data["response_body"] = response_body[:max_length]
+                        log_data["response_body_truncated"] = True
             
-        except Exception as e:
-            success = False
-            error_message = str(e)
-            response = JSONResponse(
-                status_code=500,
-                content={"detail": f"Internal server error: {str(e)}"}
-            )
-        
-        # Calculate processing time
-        processing_time = int((time.time() - start_time) * 1000)
-        
-        # Prepare response data with captured body
-        response_data = self._prepare_response_data(response, processing_time, response_body_data)
-        
-        # Combine request and response data
-        log_data = {
-            **request_data,
-            **response_data,
-            'success': success,
-            'error_message': error_message,
-            'processing_time_ms': processing_time,
-            'request_id': request_id,
-            'timestamp': time.time()
-        }
-        
-        # Log the request
-        try:
-            if self.logging_manager:
-                self.logging_manager.log_request(log_data)
-                
-                # Log performance metric
-                if success:
-                    self.logging_manager.log_performance(
-                        'processing_time',
-                        processing_time,
-                        {
-                            'endpoint': request_data['endpoint'],
-                            'method': request_data['method'],
-                            'languages': request_data.get('languages', [])
-                        }
-                    )
-                else:
-                    # Log error
-                    self.logging_manager.log_error({
-                        'endpoint': request_data['endpoint'],
-                        'method': request_data['method'],
-                        'error': error_message,
-                        'processing_time_ms': processing_time,
-                        'ip_address': request_data.get('ip_address', ''),
-                        'user_agent': request_data.get('user_agent', '')
-                    })
-        except Exception as log_error:
-            logger.error(f"Failed to log request: {log_error}")
-        
-        return response
-    
-    def _should_log_request(self, request: Request) -> bool:
-        """Xác định có nên log request này không"""
-        path = request.url.path
-        
-        # Log các OCR endpoints
-        ocr_endpoints = [
-            '/api/v1/yolo-ocr/',
-            '/api/v1/ocr/',
-        ]
-        
-        # Skip monitoring endpoints để tránh recursive logging
-        skip_endpoints = [
-            '/api/v1/monitoring/',
-            '/docs',
-            '/redoc',
-            '/openapi.json',
-            '/favicon.ico'
-        ]
-        
-        # Skip nếu là monitoring endpoint
-        for skip in skip_endpoints:
-            if path.startswith(skip):
-                return False
-        
-        # ENABLE LOGGING for all OCR endpoints - only log response, not request body
-        # This avoids consuming multipart/form-data and causing 422 errors
-        # if request.headers.get('content-type', '').startswith('multipart/form-data'):
-        #     return False
-        
-        # Log nếu là OCR endpoint
-        for ocr in ocr_endpoints:
-            if path.startswith(ocr):
-                return True
-        
-        return False
-    
-    async def _prepare_request_data(self, request: Request, request_id: str) -> dict:
-        """Chuẩn bị dữ liệu request để log"""
-        data = {
-            'request_id': request_id,
-            'endpoint': request.url.path,
-            'method': request.method,
-            'ip_address': self._get_client_ip(request),
-            'user_agent': request.headers.get('user-agent', ''),
-            'file_size': 0,
-            'languages': [],
-            'model_id': '',
-            'total_detections': 0,
-            'total_texts': 0,
-            'confidence_threshold': 0.0,
-            'request_body': {}
-        }
-        
-        # Capture request parameters từ query và form
-        request_params = {}
-        
-        # Query parameters
-        if request.query_params:
-            request_params['query_params'] = dict(request.query_params)
-        
-        # Path parameters
-        if hasattr(request, 'path_params') and request.path_params:
-            request_params['path_params'] = dict(request.path_params)
-            # Extract model_id từ path
-            if 'model_id' in request.path_params:
-                data['model_id'] = request.path_params['model_id']
-        
-        # Extract basic request info without reading multipart body
-        # This prevents consuming the request stream and causing 422 errors
-        
-        # Query parameters
-        if request.query_params:
-            request_params['query_params'] = dict(request.query_params)
-        
-        # Path parameters
-        if hasattr(request, 'path_params') and request.path_params:
-            request_params['path_params'] = dict(request.path_params)
-            # Extract model_id từ path
-            if 'model_id' in request.path_params:
-                data['model_id'] = request.path_params['model_id']
-        
-        # Extract model_id from URL path if present
-        path_parts = request.url.path.split('/')
-        if 'models' in path_parts:
-            try:
-                model_index = path_parts.index('models')
-                if model_index + 1 < len(path_parts):
-                    data['model_id'] = path_parts[model_index + 1]
-            except:
-                pass
-        
-        # Note: We skip reading form data to avoid consuming multipart stream
-        if request.headers.get('content-type', '').startswith('multipart/form-data'):
-            request_params['note'] = 'multipart/form-data - request body not logged to prevent 422 errors'
-            data['file_size'] = 0  # Will be extracted from response if available
-        data['request_body'] = request_params
-        return data
-    
-    def _prepare_response_data(self, response: Response, processing_time: int, response_body_data: dict = None) -> dict:
-        """Chuẩn bị dữ liệu response để log"""
-        data = {
-            'total_detections': 0,
-            'total_texts': 0,
-            'response_body': {},
-            'ocr_results': [],
-            'detection_results': []
-        }
-        
-        # Use captured response body data if available
-        if response_body_data:
-            try:
-                # Store full response (excluding large binary data)
-                filtered_response = {}
-                for key, value in response_body_data.items():
-                    if key in ['cropped_images']:  # Skip large binary data
-                        filtered_response[key] = f"[{len(value)} items]" if isinstance(value, list) else "[binary data]"
-                    else:
-                        filtered_response[key] = value
-                
-                data['response_body'] = filtered_response
-                
-                # Extract detection and OCR counts
-                data['total_detections'] = response_body_data.get('total_detections', 0)
-                data['total_texts'] = response_body_data.get('total_texts', 0)
-                
-                # Extract results arrays (limited for logging)
-                if 'detection_results' in response_body_data:
-                    data['detection_results'] = response_body_data['detection_results'][:5]  # Limit to first 5
-                    data['total_detections'] = len(response_body_data['detection_results'])
-                
-                if 'ocr_results' in response_body_data:
-                    data['ocr_results'] = response_body_data['ocr_results'][:5]  # Limit to first 5
-                    data['total_texts'] = len(response_body_data['ocr_results'])
-                
-                # Extract additional useful info
-                if 'languages_used' in response_body_data:
-                    data['languages_used'] = response_body_data['languages_used']
-                
-                if 'model_name' in response_body_data:
-                    data['model_name'] = response_body_data['model_name']
-                
-                if 'confidence_threshold' in response_body_data:
-                    data['confidence_threshold'] = response_body_data['confidence_threshold']
-                
-                return data
-            except Exception as e:
-                print(f"Error processing response body data: {e}")
-                # Continue with fallback processing
-        
-        try:
-            # Try to extract data from response body if it's JSON
-            if hasattr(response, 'body') and response.status_code == 200:
-                try:
-                    # For StreamingResponse or regular Response, get body differently
-                    if hasattr(response, 'body'):
-                        if callable(response.body):
-                            body_str = str(response.body)
-                        else:
-                            body_str = response.body.decode('utf-8') if isinstance(response.body, bytes) else str(response.body)
-                    else:
-                        # Try to get body from response content
-                        body_str = ""
-                    
-                    # Try to parse as JSON
-                    if body_str and body_str.strip():
-                        response_data = json.loads(body_str)
-                        
-                        # Store full response (excluding large binary data)
-                        filtered_response = {}
-                        for key, value in response_data.items():
-                            if key in ['cropped_images']:  # Skip large binary data
-                                filtered_response[key] = f"[{len(value)} items]" if isinstance(value, list) else "[binary data]"
-                            else:
-                                filtered_response[key] = value
-                        
-                        data['response_body'] = filtered_response
-                        
-                        # Extract detection and OCR counts
-                        data['total_detections'] = response_data.get('total_detections', 0)
-                        data['total_texts'] = response_data.get('total_texts', 0)
-                        
-                        # Extract results arrays (limited for logging)
-                        if 'detection_results' in response_data:
-                            data['detection_results'] = response_data['detection_results'][:5]  # Limit to first 5
-                            data['total_detections'] = len(response_data['detection_results'])
-                        
-                        if 'ocr_results' in response_data:
-                            data['ocr_results'] = response_data['ocr_results'][:5]  # Limit to first 5
-                            data['total_texts'] = len(response_data['ocr_results'])
-                        
-                        # Extract additional useful info
-                        if 'languages_used' in response_data:
-                            data['languages_used'] = response_data['languages_used']
-                        
-                        if 'model_name' in response_data:
-                            data['model_name'] = response_data['model_name']
-                        
-                        if 'confidence_threshold' in response_data:
-                            data['confidence_threshold'] = response_data['confidence_threshold']
-                    else:
-                        # Empty body or couldn't get body content
-                        data['response_body'] = {
-                            'status_code': response.status_code,
-                            'content_type': response.headers.get('content-type', ''),
-                            'note': 'Empty response body or could not read body'
-                        }
-                    
-                except json.JSONDecodeError as json_error:
-                    logger.debug(f"Could not parse response as JSON: {json_error}")
-                    # If JSON parsing fails, store what we can
-                    data['response_body'] = {
-                        'status_code': response.status_code,
-                        'content_type': response.headers.get('content-type', ''),
-                        'parse_error': f'JSON decode error: {str(json_error)}',
-                        'body_preview': body_str[:200] if 'body_str' in locals() else 'Could not read body'
-                    }
-                except Exception as parse_error:
-                    logger.debug(f"Could not parse response body: {parse_error}")
-                    # If JSON parsing fails, store status info
-                    data['response_body'] = {
-                        'status_code': response.status_code,
-                        'content_type': response.headers.get('content-type', ''),
-                        'parse_error': str(parse_error)
-                    }
+            # Determine log level based on status code
+            if response.status_code >= 500:
+                level = "ERROR"
+                self.logger.log_error(log_data)
+            elif response.status_code >= 400:
+                level = "WARNING"
             else:
-                # For non-200 responses or non-JSON responses
-                data['response_body'] = {
-                    'status_code': response.status_code,
-                    'content_type': response.headers.get('content-type', ''),
-                    'headers': dict(response.headers)
+                level = self.config.get_endpoint_log_level(path, method)
+            
+            # Log the request
+            self.logger.log_request(log_data, level)
+            
+            # Update stats
+            self._update_stats(path, method, response_time, response.status_code >= 400)
+            
+            # Log performance if slow
+            if response_time > 1.0:  # Slow request threshold
+                perf_data = {
+                    "request_id": request_id,
+                    "path": path,
+                    "method": method,
+                    "response_time_ms": round(response_time * 1000, 2),
+                    "status_code": response.status_code,
+                    "client_ip": client_ip
                 }
-        
+                self.logger.log_performance(perf_data)
+            
+            return response
+            
         except Exception as e:
-            logger.warning(f"Failed to extract response data: {e}")
-            data['response_body'] = {'error': f"Failed to parse response: {str(e)}"}
-        
-        return data
+            end_time = time.time()
+            response_time = end_time - start_time
+            
+            # Log error
+            error_data = log_data.copy()
+            error_data.update({
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "response_time_ms": round(response_time * 1000, 2)
+            })
+            
+            self.logger.log_error(error_data)
+            self._update_stats(path, method, response_time, True)
+            
+            raise
+    
+    def _generate_request_id(self) -> str:
+        """Tạo unique request ID"""
+        import uuid
+        return str(uuid.uuid4())[:8]
     
     def _get_client_ip(self, request: Request) -> str:
-        """Lấy IP address của client"""
-        # Check for forwarded headers first
-        forwarded_for = request.headers.get('x-forwarded-for')
+        """Lấy IP thực của client"""
+        forwarded_for = request.headers.get("X-Forwarded-For")
         if forwarded_for:
-            return forwarded_for.split(',')[0].strip()
+            return forwarded_for.split(",")[0].strip()
         
-        real_ip = request.headers.get('x-real-ip')
+        real_ip = request.headers.get("X-Real-IP")
         if real_ip:
             return real_ip
         
-        # Fallback to direct client IP
-        if hasattr(request, 'client') and request.client:
-            return request.client.host
+        return request.client.host if request.client else "unknown"
+    
+    def _create_receive(self, body: bytes):
+        """Tạo receive callable với body đã đọc"""
+        async def receive():
+            return {"type": "http.request", "body": body}
+        return receive
+    
+    async def _extract_response_body(self, response: Response) -> Optional[str]:
+        """Extract response body cho logging"""
+        try:
+            # Chỉ log text responses
+            content_type = response.headers.get("content-type", "")
+            if not any(ct in content_type.lower() for ct in ["json", "text", "xml"]):
+                return None
+            
+            if hasattr(response, 'body'):
+                body = response.body
+                if isinstance(body, bytes):
+                    return body.decode('utf-8', errors='ignore')
+                return str(body)
+        except Exception:
+            pass
         
-        return 'unknown'
+        return None
+    
+    def _update_stats(self, path: str, method: str, response_time: float, is_error: bool):
+        """Cập nhật thống kê endpoint"""
+        key = f"{method}:{path}"
+        stats = self.stats[key]
+        
+        stats["total_requests"] += 1
+        if is_error:
+            stats["error_count"] += 1
+        
+        # Update average response time
+        current_avg = stats["avg_response_time"]
+        total_requests = stats["total_requests"]
+        stats["avg_response_time"] = (current_avg * (total_requests - 1) + response_time) / total_requests
+        stats["last_called"] = datetime.now().isoformat()
+    
+    def cleanup_old_logs(self):
+        """Cleanup logs cũ theo retention policy"""
+        try:
+            retention_days = self.config.config.get("retention_days", 30)
+            cutoff_date = datetime.now() - timedelta(days=retention_days)
+            
+            log_files = [
+                "requests.log",
+                "errors.log", 
+                "performance.log"
+            ]
+            
+            for log_file in log_files:
+                log_path = os.path.join(self.logger.log_dir, log_file)
+                if os.path.exists(log_path):
+                    self._rotate_log_file(log_path, cutoff_date)
+            
+            logging.info(f"Log cleanup completed. Removed logs older than {retention_days} days")
+            
+        except Exception as e:
+            logging.error(f"Log cleanup failed: {e}")
+    
+    def _rotate_log_file(self, log_path: str, cutoff_date: datetime):
+        """Rotate log file, keeping only recent entries"""
+        try:
+            # Read all lines
+            with open(log_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            # Filter lines by date
+            filtered_lines = []
+            for line in lines:
+                try:
+                    # Extract timestamp from log line
+                    timestamp_str = line.split(' | ')[0]
+                    log_date = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                    
+                    if log_date >= cutoff_date:
+                        filtered_lines.append(line)
+                except:
+                    # Keep line if can't parse date
+                    filtered_lines.append(line)
+            
+            # Write back filtered lines
+            with open(log_path, 'w', encoding='utf-8') as f:
+                f.writelines(filtered_lines)
+                
+        except Exception as e:
+            logging.error(f"Failed to rotate log file {log_path}: {e}")
+    
+    def get_stats(self) -> Dict:
+        """Lấy thống kê endpoint"""
+        return dict(self.stats)
+    
+    def get_config(self) -> Dict:
+        """Lấy cấu hình hiện tại"""
+        return self.config.config
+    
+    def update_config(self, new_config: Dict):
+        """Cập nhật cấu hình"""
+        self.config.config.update(new_config)
+        self.config.save_config()
+
+# Global instance
+logging_middleware = AdvancedLoggingMiddleware(None)

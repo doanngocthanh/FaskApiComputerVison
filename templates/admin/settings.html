@@ -1,0 +1,348 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}Configure API documentation and system settings{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-success" onclick="saveAllSettings()">
+    <i class="fas fa-save"></i> Save Settings
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Swagger Configuration -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-book"></i> Swagger Documentation Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">API Title</label>
+                        <input type="text" class="form-control" id="swagger_title" placeholder="API Title">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">API Version</label>
+                        <input type="text" class="form-control" id="swagger_version" placeholder="1.0.0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Documentation Mode</label>
+                        <select class="form-select" id="documentation_mode">
+                            <option value="minimal">Minimal</option>
+                            <option value="clean">Clean</option>
+                            <option value="full">Full</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <label class="form-label">API Description</label>
+                        <textarea class="form-control" id="swagger_description" rows="3" placeholder="API Description"></textarea>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="show_error_responses">
+                            <label class="form-check-label">Show Error Responses</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="show_crud_endpoints">
+                            <label class="form-check-label">Show CRUD Endpoints</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="show_internal_endpoints">
+                            <label class="form-check-label">Show Internal Endpoints</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Settings -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> System Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Auto Sync Endpoints</label>
+                        <select class="form-select" id="auto_sync_endpoints">
+                            <option value="true">Enabled</option>
+                            <option value="false">Disabled</option>
+                        </select>
+                        <small class="text-muted">Automatically sync endpoints on application start</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Cache Swagger Schema</label>
+                        <select class="form-select" id="cache_swagger_schema">
+                            <option value="true">Enabled</option>
+                            <option value="false">Disabled</option>
+                        </select>
+                        <small class="text-muted">Cache Swagger schema for better performance</small>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Log Level</label>
+                        <select class="form-select" id="log_level">
+                            <option value="DEBUG">Debug</option>
+                            <option value="INFO">Info</option>
+                            <option value="WARNING">Warning</option>
+                            <option value="ERROR">Error</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Session Timeout (hours)</label>
+                        <input type="number" class="form-control" id="session_timeout" min="1" max="168" value="24">
+                        <small class="text-muted">Admin session timeout in hours</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-primary w-100 mb-2" onclick="refreshSwagger()">
+                            <i class="fas fa-refresh"></i><br>
+                            <small>Refresh Swagger</small>
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-success w-100 mb-2" onclick="syncEndpoints()">
+                            <i class="fas fa-sync"></i><br>
+                            <small>Sync Endpoints</small>
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-warning w-100 mb-2" onclick="cleanupSessions()">
+                            <i class="fas fa-broom"></i><br>
+                            <small>Cleanup Sessions</small>
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-info w-100 mb-2" onclick="window.open('/docs', '_blank')">
+                            <i class="fas fa-external-link-alt"></i><br>
+                            <small>View API Docs</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Configuration Preview -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-eye"></i> Current Configuration Preview</h5>
+            </div>
+            <div class="card-body">
+                <pre id="config-preview" class="bg-light p-3 rounded">Loading...</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block init_js %}
+loadSettings();
+{% endblock %}
+
+{% block extra_js %}
+let currentSettings = {};
+
+async function loadSettings() {
+    try {
+        showLoading();
+        const response = await fetch('/api/admin/settings');
+        const data = await response.json();
+        currentSettings = data.settings || {};
+        
+        populateSettingsForm();
+        updateConfigPreview();
+        
+    } catch (error) {
+        console.error('Failed to load settings:', error);
+        showToast('Failed to load settings', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function populateSettingsForm() {
+    // Swagger settings
+    document.getElementById('swagger_title').value = currentSettings.swagger_title || '';
+    document.getElementById('swagger_version').value = currentSettings.swagger_version || '';
+    document.getElementById('swagger_description').value = currentSettings.swagger_description || '';
+    document.getElementById('documentation_mode').value = currentSettings.documentation_mode || 'clean';
+    document.getElementById('show_error_responses').checked = currentSettings.show_error_responses === 'true';
+    document.getElementById('show_crud_endpoints').checked = currentSettings.show_crud_endpoints === 'true';
+    document.getElementById('show_internal_endpoints').checked = currentSettings.show_internal_endpoints === 'true';
+    
+    // System settings
+    document.getElementById('auto_sync_endpoints').value = currentSettings.auto_sync_endpoints || 'true';
+    document.getElementById('cache_swagger_schema').value = currentSettings.cache_swagger_schema || 'true';
+    document.getElementById('log_level').value = currentSettings.log_level || 'INFO';
+    document.getElementById('session_timeout').value = currentSettings.session_timeout || '24';
+}
+
+function updateConfigPreview() {
+    const preview = {
+        swagger: {
+            title: currentSettings.swagger_title || 'AI Processing API',
+            version: currentSettings.swagger_version || '1.0.0',
+            description: currentSettings.swagger_description || '',
+            documentation_mode: currentSettings.documentation_mode || 'clean'
+        },
+        features: {
+            show_error_responses: currentSettings.show_error_responses === 'true',
+            show_crud_endpoints: currentSettings.show_crud_endpoints === 'true',
+            show_internal_endpoints: currentSettings.show_internal_endpoints === 'true'
+        },
+        system: {
+            auto_sync_endpoints: currentSettings.auto_sync_endpoints === 'true',
+            cache_swagger_schema: currentSettings.cache_swagger_schema === 'true',
+            log_level: currentSettings.log_level || 'INFO',
+            session_timeout: currentSettings.session_timeout || '24'
+        }
+    };
+    
+    document.getElementById('config-preview').textContent = JSON.stringify(preview, null, 2);
+}
+
+async function saveAllSettings() {
+    try {
+        showLoading();
+        
+        const settingsToSave = [
+            { key: 'swagger_title', value: document.getElementById('swagger_title').value },
+            { key: 'swagger_version', value: document.getElementById('swagger_version').value },
+            { key: 'swagger_description', value: document.getElementById('swagger_description').value },
+            { key: 'documentation_mode', value: document.getElementById('documentation_mode').value },
+            { key: 'show_error_responses', value: document.getElementById('show_error_responses').checked.toString() },
+            { key: 'show_crud_endpoints', value: document.getElementById('show_crud_endpoints').checked.toString() },
+            { key: 'show_internal_endpoints', value: document.getElementById('show_internal_endpoints').checked.toString() },
+            { key: 'auto_sync_endpoints', value: document.getElementById('auto_sync_endpoints').value },
+            { key: 'cache_swagger_schema', value: document.getElementById('cache_swagger_schema').value },
+            { key: 'log_level', value: document.getElementById('log_level').value },
+            { key: 'session_timeout', value: document.getElementById('session_timeout').value }
+        ];
+        
+        for (const setting of settingsToSave) {
+            await fetch('/api/admin/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(setting)
+            });
+        }
+        
+        // Refresh Swagger after saving
+        await fetch('/api/admin/refresh-swagger', { method: 'POST' });
+        
+        showToast('All settings saved successfully and Swagger refreshed!', 'success');
+        
+        // Reload settings to update preview
+        await loadSettings();
+        
+    } catch (error) {
+        console.error('Save failed:', error);
+        showToast('Failed to save settings', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function refreshSwagger() {
+    try {
+        showLoading();
+        const response = await fetch('/api/admin/refresh-swagger', { method: 'POST' });
+        
+        if (response.ok) {
+            showToast('Swagger documentation refreshed!', 'success');
+        } else {
+            showToast('Failed to refresh Swagger', 'danger');
+        }
+    } catch (error) {
+        console.error('Swagger refresh error:', error);
+        showToast('Failed to refresh Swagger', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function syncEndpoints() {
+    try {
+        showLoading();
+        const response = await fetch('/api/admin/sync', { method: 'POST' });
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast(`Sync completed! New: ${data.stats.new_endpoints}, Updated: ${data.stats.updated_endpoints}`, 'success');
+        } else {
+            showToast('Sync failed', 'danger');
+        }
+    } catch (error) {
+        console.error('Sync error:', error);
+        showToast('Sync failed', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function cleanupSessions() {
+    try {
+        showLoading();
+        const response = await fetch('/api/admin/auth/cleanup', { method: 'POST' });
+        
+        if (response.ok) {
+            showToast('Expired sessions cleaned up!', 'success');
+        } else {
+            showToast('Failed to cleanup sessions', 'danger');
+        }
+    } catch (error) {
+        console.error('Cleanup error:', error);
+        showToast('Failed to cleanup sessions', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Auto-update preview when form values change
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        input.addEventListener('change', function() {
+            // Update currentSettings with new value
+            const key = this.id;
+            const value = this.type === 'checkbox' ? this.checked.toString() : this.value;
+            currentSettings[key] = value;
+            updateConfigPreview();
+        });
+    });
+});
+{% endblock %}

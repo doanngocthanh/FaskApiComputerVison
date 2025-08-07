@@ -1,0 +1,321 @@
+{% extends "admin/base.html" %}
+
+{% block title %}API Management{% endblock %}
+{% block page_title %}API Management{% endblock %}
+{% block page_subtitle %}Manage visibility and settings of API endpoints{% endblock %}
+
+{% block extra_css %}
+.endpoint-card {
+    border-left: 4px solid #007bff;
+    transition: all 0.3s ease;
+}
+.endpoint-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.method-badge {
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+.method-GET { background-color: #28a745; }
+.method-POST { background-color: #007bff; }
+.method-PUT { background-color: #ffc107; color: #000; }
+.method-DELETE { background-color: #dc3545; }
+.method-PATCH { background-color: #6f42c1; }
+{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary me-2" onclick="syncEndpoints()">
+    <i class="fas fa-sync"></i> Sync Endpoints
+</button>
+<button class="btn btn-success" onclick="saveAllChanges()">
+    <i class="fas fa-save"></i> Save All Changes
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Filter and Search -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <input type="text" class="form-control" id="search_input" placeholder="Search endpoints..." onkeyup="filterEndpoints()">
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="router_filter" onchange="filterEndpoints()">
+            <option value="">All Routers</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="method_filter" onchange="filterEndpoints()">
+            <option value="">All Methods</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+            <option value="PATCH">PATCH</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select class="form-select" id="visibility_filter" onchange="filterEndpoints()">
+            <option value="">All</option>
+            <option value="visible">Visible</option>
+            <option value="hidden">Hidden</option>
+        </select>
+    </div>
+</div>
+
+<!-- Endpoints List -->
+<div class="row">
+    <div class="col-12">
+        <div id="endpoints_container">
+            <!-- Endpoints will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Profile Modal -->
+<div class="modal fade" id="profileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user"></i> Admin Profile
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="profile-content">
+                    <!-- Profile content will be loaded here -->
+                </div>
+                
+                <!-- Change Password Section -->
+                <hr>
+                <h6><i class="fas fa-key"></i> Change Password</h6>
+                <form id="changePasswordForm">
+                    <div class="mb-3">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="current_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="new_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="confirm_password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Change Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block init_js %}
+loadEndpoints();
+{% endblock %}
+
+{% block extra_js %}
+let endpoints = [];
+let pendingChanges = [];
+
+async function loadEndpoints() {
+    try {
+        showLoading();
+        const response = await fetch('/api/admin/endpoints');
+        const data = await response.json();
+        endpoints = data.endpoints || [];
+        
+        populateFilters();
+        renderEndpoints();
+        
+    } catch (error) {
+        console.error('Failed to load endpoints:', error);
+        showToast('Failed to load endpoints', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function populateFilters() {
+    const routerFilter = document.getElementById('router_filter');
+    const routers = [...new Set(endpoints.map(e => e.router_name))].sort();
+    
+    routerFilter.innerHTML = '<option value="">All Routers</option>';
+    routers.forEach(router => {
+        routerFilter.innerHTML += `<option value="${router}">${router}</option>`;
+    });
+}
+
+function renderEndpoints() {
+    const container = document.getElementById('endpoints_container');
+    container.innerHTML = '';
+    
+    const filteredEndpoints = getFilteredEndpoints();
+    
+    if (filteredEndpoints.length === 0) {
+        container.innerHTML = '<div class="text-center py-4"><p>No endpoints found</p></div>';
+        return;
+    }
+    
+    filteredEndpoints.forEach(endpoint => {
+        const card = createEndpointCard(endpoint);
+        container.appendChild(card);
+    });
+}
+
+function getFilteredEndpoints() {
+    const searchTerm = document.getElementById('search_input').value.toLowerCase();
+    const routerFilter = document.getElementById('router_filter').value;
+    const methodFilter = document.getElementById('method_filter').value;
+    const visibilityFilter = document.getElementById('visibility_filter').value;
+    
+    return endpoints.filter(endpoint => {
+        const matchesSearch = !searchTerm || 
+            endpoint.endpoint_path.toLowerCase().includes(searchTerm) ||
+            endpoint.endpoint_name.toLowerCase().includes(searchTerm) ||
+            endpoint.description.toLowerCase().includes(searchTerm);
+            
+        const matchesRouter = !routerFilter || endpoint.router_name === routerFilter;
+        const matchesMethod = !methodFilter || endpoint.endpoint_method === methodFilter;
+        const matchesVisibility = !visibilityFilter || 
+            (visibilityFilter === 'visible' && endpoint.is_visible) ||
+            (visibilityFilter === 'hidden' && !endpoint.is_visible);
+        
+        return matchesSearch && matchesRouter && matchesMethod && matchesVisibility;
+    });
+}
+
+function createEndpointCard(endpoint) {
+    const card = document.createElement('div');
+    card.className = 'endpoint-card card mb-3';
+    card.innerHTML = `
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge method-badge method-${endpoint.endpoint_method} me-2">
+                            ${endpoint.endpoint_method}
+                        </span>
+                        <code>${endpoint.endpoint_path}</code>
+                    </div>
+                    <h6 class="card-title mb-1">${endpoint.endpoint_name}</h6>
+                    <small class="text-muted">Router: ${endpoint.router_name}</small>
+                    ${endpoint.description ? `<p class="text-muted small mt-1">${endpoint.description}</p>` : ''}
+                </div>
+                <div class="col-md-3">
+                    ${endpoint.tags && endpoint.tags.length > 0 ? 
+                        endpoint.tags.map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('') : 
+                        '<span class="text-muted">No tags</span>'
+                    }
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center justify-content-end">
+                        <div class="form-check form-switch me-3">
+                            <input class="form-check-input visibility-toggle" type="checkbox" 
+                                   id="visible_${endpoint.id}" ${endpoint.is_visible ? 'checked' : ''}
+                                   onchange="toggleVisibility(${endpoint.id}, this.checked)">
+                            <label class="form-check-label" for="visible_${endpoint.id}">
+                                ${endpoint.is_visible ? 'Visible' : 'Hidden'}
+                            </label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" 
+                                   id="public_${endpoint.id}" ${endpoint.is_public ? 'checked' : ''}
+                                   onchange="togglePublic(${endpoint.id}, this.checked)">
+                            <label class="form-check-label" for="public_${endpoint.id}">
+                                Public
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    return card;
+}
+
+function toggleVisibility(endpointId, isVisible) {
+    const endpoint = endpoints.find(e => e.id === endpointId);
+    if (endpoint) {
+        endpoint.is_visible = isVisible;
+        addPendingChange(endpointId, 'is_visible', isVisible);
+        
+        // Update label
+        const label = document.querySelector(`label[for="visible_${endpointId}"]`);
+        label.textContent = isVisible ? 'Visible' : 'Hidden';
+    }
+}
+
+function togglePublic(endpointId, isPublic) {
+    const endpoint = endpoints.find(e => e.id === endpointId);
+    if (endpoint) {
+        endpoint.is_public = isPublic;
+        addPendingChange(endpointId, 'is_public', isPublic);
+    }
+}
+
+function addPendingChange(endpointId, field, value) {
+    const existingIndex = pendingChanges.findIndex(c => c.id === endpointId);
+    if (existingIndex >= 0) {
+        pendingChanges[existingIndex][field] = value;
+    } else {
+        const change = { id: endpointId };
+        change[field] = value;
+        pendingChanges.push(change);
+    }
+}
+
+function filterEndpoints() {
+    renderEndpoints();
+}
+
+async function syncEndpoints() {
+    try {
+        showLoading();
+        const response = await fetch('/api/admin/sync', { method: 'POST' });
+        const data = await response.json();
+        
+        showToast(`Sync completed! New: ${data.stats.new_endpoints}, Updated: ${data.stats.updated_endpoints}`, 'success');
+        loadEndpoints();
+    } catch (error) {
+        console.error('Sync failed:', error);
+        showToast('Sync failed', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function saveAllChanges() {
+    if (pendingChanges.length === 0) {
+        showToast('No changes to save', 'warning');
+        return;
+    }
+    
+    try {
+        showLoading();
+        
+        const response = await fetch('/api/admin/endpoints/bulk-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ updates: pendingChanges })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            showToast(`Updated ${data.stats.updated} endpoints successfully!`, 'success');
+            pendingChanges = [];
+        } else {
+            const error = await response.json();
+            showToast(`Failed to save changes: ${error.detail}`, 'danger');
+        }
+        
+    } catch (error) {
+        console.error('Save failed:', error);
+        showToast('Failed to save changes', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+{% endblock %}

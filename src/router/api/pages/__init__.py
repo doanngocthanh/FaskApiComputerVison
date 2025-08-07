@@ -1,1 +1,0 @@
-# Static Pages Router Package

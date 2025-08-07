@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Panel{% endblock %} - API Management</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
+            --success-gradient: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            --danger-gradient: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .sidebar {
+            min-height: 100vh;
+            background: var(--primary-gradient);
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            margin: 0.2rem 0;
+            transition: all 0.3s;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .sidebar .nav-link i {
+            width: 20px;
+            margin-right: 10px;
+        }
+
+        .main-content {
+            background: white;
+            min-height: 100vh;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .header-bar {
+            background: white;
+            padding: 1rem 0;
+            border-bottom: 1px solid #e9ecef;
+            margin-bottom: 2rem;
+        }
+
+        .stats-card {
+            background: var(--secondary-gradient);
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: transform 0.3s;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .btn-gradient {
+            background: var(--primary-gradient);
+            border: none;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            color: white;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9998;
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 mb-0">Processing...</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 px-0">
+                <div class="sidebar">
+                    <div class="p-3">
+                        <h4 class="text-center mb-4">
+                            <i class="fas fa-cogs"></i>
+                            <br><small>API Admin</small>
+                        </h4>
+                        
+                        <nav class="nav flex-column">
+                            <a class="nav-link" href="/admin" data-page="dashboard">
+                                <i class="fas fa-tachometer-alt"></i>
+                                Dashboard
+                            </a>
+                            <a class="nav-link" href="/admin/management" data-page="management">
+                                <i class="fas fa-list"></i>
+                                API Management
+                            </a>
+                            <a class="nav-link" href="/admin/settings" data-page="settings">
+                                <i class="fas fa-cog"></i>
+                                Settings
+                            </a>
+                            <a class="nav-link" href="/admin/profile" data-page="profile">
+                                <i class="fas fa-user"></i>
+                                Profile
+                            </a>
+                            <a class="nav-link" href="/admin/security" data-page="security">
+                                <i class="fas fa-shield-alt"></i>
+                                Security
+                            </a>
+                            <a class="nav-link" href="/admin/rate-limit" data-page="rate-limit">
+                                <i class="fas fa-tachometer-alt"></i>
+                                Rate Limiting
+                            </a>
+                            <a class="nav-link" href="/admin/logging" data-page="logging">
+                                <i class="fas fa-file-alt"></i>
+                                Logging
+                            </a>
+                            <a class="nav-link" href="/admin/logging-enhanced" data-page="logging-enhanced">
+                                <i class="fas fa-chart-line"></i>
+                                Enhanced Logging
+                            <hr class="my-3" style="border-color: rgba(255,255,255,0.3);">
+                            
+                            <a class="nav-link" href="/docs" target="_blank">
+                                <i class="fas fa-book"></i>
+                                API Docs
+                            </a>
+                            <a class="nav-link" href="#" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Logout
+                            </a>
+                        </nav>
+                    </div>
+
+                    <!-- User Info -->
+                    <div class="mt-auto p-3" style="border-top: 1px solid rgba(255,255,255,0.2);">
+                        <div class="text-center">
+                            <i class="fas fa-user-circle fa-2x mb-2"></i>
+                            <div id="sidebar-username">Loading...</div>
+                            <small class="text-muted" id="sidebar-role">Administrator</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 px-0">
+                <div class="main-content">
+                    <!-- Header Bar -->
+                    <div class="header-bar">
+                        <div class="container-fluid px-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h1 class="h3 mb-0">{% block page_title %}Dashboard{% endblock %}</h1>
+                                    <small class="text-muted">{% block page_subtitle %}Welcome to admin panel{% endblock %}</small>
+                                </div>
+                                <div>
+                                    {% block header_actions %}{% endblock %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Page Content -->
+                    <div class="container-fluid px-4">
+                        {% block content %}{% endblock %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Auth Manager -->
+    <script src="/static/frontend/assets/js/auth.js"></script>
+    
+    <!-- Base JavaScript -->
+    <script>
+        // Initialize auth manager
+        const auth = new AuthManager();
+        window.auth = auth;
+        
+        // Global variables
+        let currentUser = null;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initAuth();
+            initNavigation();
+            {% block init_js %}{% endblock %}
+        });
+
+        // Auth functions using AuthManager
+        async function initAuth() {
+            const isAuthenticated = await auth.checkAuth();
+            if (isAuthenticated) {
+                currentUser = auth.getUser();
+                updateUserInfo();
+                return true;
+            } else {
+                redirectToLogin();
+                return false;
+            }
+        }
+
+        function updateUserInfo() {
+            if (currentUser) {
+                document.getElementById('sidebar-username').textContent = currentUser.username;
+            }
+        }
+
+        function redirectToLogin() {
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/admin/login';
+            }
+        }
+
+        async function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                const result = await auth.logout();
+                if (result.success) {
+                    window.location.href = '/admin/login';
+                } else {
+                    console.error('Logout failed:', result.error);
+                    // Force logout anyway
+                    auth.removeToken();
+                    window.location.href = '/admin/login';
+                }
+            }
+        }
+
+        // Navigation
+        function initNavigation() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.sidebar .nav-link[data-page]');
+            
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (currentPath === href || currentPath.startsWith(href + '/')) {
+                    link.classList.add('active');
+                }
+                
+                link.addEventListener('click', function(e) {
+                    if (this.getAttribute('href') !== '#') {
+                        // Let the browser handle the navigation
+                        showLoading();
+                    }
+                });
+            });
+        }
+
+        // Utility functions
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function showToast(message, type = 'success') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
+            
+            const toastHtml = `
+                <div class="toast align-items-center text-white bg-${type} border-0" role="alert" id="${toastId}">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+            toast.show();
+            
+            // Remove from DOM after hide
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                this.remove();
+            });
+        }
+
+        // AuthManager handles fetch wrapper globally
+
+        // Shared utility functions
+        async function refreshSwagger() {
+            try {
+                showLoading();
+                const response = await auth.fetch('/api/admin/refresh-swagger', { method: 'POST' });
+                
+                if (response.ok) {
+                    showToast('Swagger documentation refreshed!', 'success');
+                } else {
+                    showToast('Failed to refresh Swagger', 'danger');
+                }
+            } catch (error) {
+                console.error('Swagger refresh error:', error);
+                showToast('Failed to refresh Swagger', 'danger');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        {% block extra_js %}{% endblock %}
+    </script>
+</body>
+</html>

@@ -150,134 +150,24 @@ router = APIRouter(
 )
 @router.get("/card/categories",
            summary="Get Card Categories",
-           description="Retrieve all active card categories from database",
-           response_description="List of card categories with Vietnamese and English names")
+           description="Retrieve all active card categories from database")
 def get_card_types():
-    """
-    Get the list of card categories from database.
-    
-    **Output Example:**
-    ```json
-    [
-        {
-            "id": 0,
-            "name": "Thẻ Căn Cước Công Dân", 
-            "nameEn": "Citizens Card",
-            "is_active": true
-        },
-        {
-            "id": 1,
-            "name": "Giấy Phép Lái Xe",
-            "nameEn": "Driving License", 
-            "is_active": true
-        },
-        {
-            "id": 5,
-            "name": "Thẻ Căn Cước Công Dân Mới",
-            "nameEn": "New Citizens Card",
-            "is_active": true
-        }
-    ]
-    ```
-    
-    Returns:
-        List of active card categories with bilingual names
-    """
     return card_config_service.get_card_categories()
 
 @router.get("/card/types",
            summary="Get Card Types", 
-           description="Retrieve all active card types (front/back) from database",
-           response_description="List of card types with Vietnamese and English names")
+           description="Retrieve all active card types (front/back) from database")
 def get_card_types_list():
-    """
-    Get the list of card types from database.
-    
-    **Output Example:**
-    ```json
-    [
-        {
-            "id": 0,
-            "name": "Mặt Trước",
-            "nameEn": "Front",
-            "is_active": true
-        },
-        {
-            "id": 1, 
-            "name": "Mặt Sau",
-            "nameEn": "Back",
-            "is_active": true
-        }
-    ]
-    ```
-    
-    Returns:
-        List of active card types (front/back orientation)
-    """
     return card_config_service.get_card_types()
 
 @router.get("/card/config",
            summary="Get Card Configuration Summary",
-           description="Get complete card configuration summary including categories, types, and database info",
-           response_description="Complete configuration summary with counts and database path")
+           description="Get complete card configuration summary")
 def get_card_config():
-    """
-    Get complete card configuration summary from database.
-    
-    **Output Example:**
-    ```json
-    {
-        "card_categories_count": 7,
-        "card_types_count": 2,
-        "card_categories": [...],
-        "card_types": [...],
-        "database_path": "c:\\WorkSpace\\Rest\\.local\\share\\database\\app.db"
-    }
-    ```
-    
-    Returns:
-        Configuration summary with counts, data, and system information
-    """
     return card_config_service.get_config_summary()
 
-@router.post("/card/categories",
-            summary="Add New Card Category",
-            description="Add a new card category to the database with Vietnamese and English names",
-            response_description="Success response with created category information")
-def add_card_category(name: str = Form(..., description="Vietnamese name for the card category", example="Thẻ Học Sinh"),
-                     nameEn: str = Form(..., description="English name for the card category", example="Student Card")):
-    """
-    Add new card category to database.
-    
-    **Input Example:**
-    ```
-    name: "Thẻ Học Sinh"
-    nameEn: "Student Card"
-    ```
-    
-    **Output Example:**
-    ```json
-    {
-        "message": "Card category added successfully",
-        "category_id": 7,
-        "category": {
-            "id": 7,
-            "name": "Thẻ Học Sinh",
-            "nameEn": "Student Card",
-            "is_active": true
-        }
-    }
-    ```
-    
-    Returns:
-        Success message with new category ID and details
-        
-    Raises:
-        HTTPException: 500 if database operation fails
-    """
-    """
-    Endpoint to add new card category to database.
-    """
+@router.post("/card/categories")
+def add_card_category(name: str = Form(...), nameEn: str = Form(...)):
     try:
         category_id = card_config_service.add_card_category(name, nameEn)
         return {
@@ -288,44 +178,8 @@ def add_card_category(name: str = Form(..., description="Vietnamese name for the
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to add card category: {str(e)}")
 
-@router.post("/card/types",
-            summary="Add New Card Type", 
-            description="Add a new card type (orientation) to the database with Vietnamese and English names",
-            response_description="Success response with created card type information")
-def add_card_type(name: str = Form(..., description="Vietnamese name for the card type", example="Mặt Bên"),
-                 nameEn: str = Form(..., description="English name for the card type", example="Side")):
-    """
-    Add new card type to database.
-    
-    **Input Example:**
-    ```
-    name: "Mặt Bên"
-    nameEn: "Side"
-    ```
-    
-    **Output Example:**
-    ```json
-    {
-        "message": "Card type added successfully",
-        "type_id": 2,
-        "type": {
-            "id": 2,
-            "name": "Mặt Bên",
-            "nameEn": "Side",
-            "is_active": true
-        }
-    }
-    ```
-    
-    Returns:
-        Success message with new card type ID and details
-        
-    Raises:
-        HTTPException: 500 if database operation fails
-    """
-    """
-    Endpoint to add new card type to database.
-    """
+@router.post("/card/types")
+def add_card_type(name: str = Form(...), nameEn: str = Form(...)):
     try:
         type_id = card_config_service.add_card_type(name, nameEn)
         return {
@@ -338,9 +192,7 @@ def add_card_type(name: str = Form(..., description="Vietnamese name for the car
 
 @router.put("/card/categories/{category_id}")
 def update_card_category(category_id: int, name: str = None, nameEn: str = None, is_active: bool = None):
-    """
-    Endpoint to update existing card category in database.
-    """
+    """Update existing card category in database."""
     try:
         success = card_config_service.update_card_category(category_id, name, nameEn, is_active)
         if success:
@@ -355,9 +207,7 @@ def update_card_category(category_id: int, name: str = None, nameEn: str = None,
 
 @router.put("/card/types/{type_id}")
 def update_card_type(type_id: int, name: str = None, nameEn: str = None, is_active: bool = None):
-    """
-    Endpoint to update existing card type in database.
-    """
+    """Update existing card type in database."""
     try:
         success = card_config_service.update_card_type(type_id, name, nameEn, is_active)
         if success:
@@ -372,9 +222,7 @@ def update_card_type(type_id: int, name: str = None, nameEn: str = None, is_acti
 
 @router.delete("/card/categories/{category_id}")
 def delete_card_category(category_id: int):
-    """
-    Endpoint to soft delete card category (set is_active = 0).
-    """
+    """Soft delete card category (set is_active = 0)."""
     try:
         success = card_config_service.delete_card_category(category_id)
         if success:
@@ -386,9 +234,7 @@ def delete_card_category(category_id: int):
 
 @router.delete("/card/types/{type_id}")
 def delete_card_type(type_id: int):
-    """
-    Endpoint to soft delete card type (set is_active = 0).
-    """
+    """Soft delete card type (set is_active = 0)."""
     try:
         success = card_config_service.delete_card_type(type_id)
         if success:
@@ -398,137 +244,10 @@ def delete_card_type(type_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete card type: {str(e)}")
 
-@router.get("/card/demo")
-def demo_supported_cards():
-    """
-    Demo endpoint showing all supported card types and labels.
-    """
-    return {
-        "supported_models": {
-            "CCCD_OLD_NEW.pt": {
-                "description": "Unified model for Vietnam Citizens Cards and Driving License",
-                "supported_labels": [
-                    "cccd_qr_front", "cccd_qr_back",  # CCCD Cũ
-                    "cccd_new_front", "cccd_new_back",  # CCCD Mới
-                    "gplx_front", "gplx_back"  # Giấy Phép Lái Xe
-                ]
-            },
-            "OCR_QR_CCCD.pt": {
-                "description": "OCR detection model for additional verification",
-                "supported_features": ["portrait", "qr_code", "name", "id", "birth", "sex", "place_of_origin", "place_of_residence"]
-            }
-        },
-        "card_categories": card_config_service.get_card_categories(),
-        "card_types": card_config_service.get_card_types(),
-        "classification_rules": {
-            "rule_1": "QR code detected → CCCD Cũ",
-            "rule_2": "Portrait + Basic info (no QR) → CCCD Mới or GPLX",
-            "rule_3": "Basic info only (no portrait, no QR) → GPLX Back",
-            "rule_4": "QR only (no portrait) → Back side",
-            "rule_5": "Fallback → CCCD Cũ"
-        }
-    }
 @router.post("/card/detect",
-            response_model=CardDetectionResponse,
             summary="Detect Vietnam Card Type",
-            description="Detect and classify Vietnam Citizens Card or Driving License from uploaded image using YOLO + OCR analysis",
-            response_description="Card detection results with classification, confidence scores, and OCR features")
-async def detect_card(file: UploadFile = File(..., description="Image file containing Vietnam card (JPG, PNG, JPEG format)")):
-    """
-    Detect and classify Vietnam Citizens Card or Driving License from uploaded image.
-    
-    **Detection Process:**
-    1. YOLO model detects card regions (CCCD_OLD_NEW_GPLX.pt)
-    2. OCR model extracts features (OCR_QR_CCCD.pt) 
-    3. Smart classification using OCR-based rules
-    4. Return best detection with confidence scores
-    
-    **Supported Card Types:**
-    - Thẻ Căn Cước Công Dân Cũ (Old Citizens Card) - với QR code
-    - Thẻ Căn Cước Công Dân Mới (New Citizens Card) - không QR code  
-    - Giấy Phép Lái Xe (Driving License) - mặt trước và sau
-    
-    **Output Example (CCCD Cũ - Mặt Trước):**
-    ```json
-    {
-        "detections": [
-            {
-                "confidence": 0.95,
-                "detected_label": "cccd_qr_front",
-                "card_category": {
-                    "id": 0,
-                    "name": "Thẻ Căn Cước Công Dân",
-                    "nameEn": "Citizens Card"
-                },
-                "card_type": {
-                    "id": 0, 
-                    "name": "Mặt Trước",
-                    "nameEn": "Front"
-                },
-                "is_valid_card": true,
-                "ocr_features": {
-                    "has_portrait": true,
-                    "has_qr_code": true,
-                    "has_basic_info": true,
-                    "has_address_info": true,
-                    "detected_info_types": ["portrait", "qr_code", "name", "id", "birth"]
-                }
-            }
-        ]
-    }
-    ```
-    
-    **Output Example (GPLX - Mặt Trước):**
-    ```json
-    {
-        "detections": [
-            {
-                "confidence": 0.89,
-                "detected_label": "gplx_front", 
-                "card_category": {
-                    "id": 1,
-                    "name": "Giấy Phép Lái Xe", 
-                    "nameEn": "Driving License"
-                },
-                "card_type": {
-                    "id": 0,
-                    "name": "Mặt Trước",
-                    "nameEn": "Front"
-                },
-                "is_valid_card": true,
-                "ocr_features": {
-                    "has_portrait": true,
-                    "has_qr_code": false,
-                    "has_basic_info": true,
-                    "detected_info_types": ["portrait", "name", "id", "birth"]
-                }
-            }
-        ]
-    }
-    ```
-    
-    **Output Example (No Detection):**
-    ```json
-    {
-        "message": "No card regions detected.",
-        "detections": []
-    }
-    ```
-    
-    **Classification Rules:**
-    - Rule 1: QR code detected → CCCD Cũ
-    - Rule 2: Portrait + Basic info (no QR) → CCCD Mới or GPLX  
-    - Rule 3: Basic info only (no portrait, no QR) → GPLX Back
-    - Rule 4: QR only (no portrait) → Back side
-    - Rule 5: Fallback → CCCD Cũ
-    
-    Returns:
-        Detection results with card classification and OCR feature analysis
-        
-    Raises:
-        HTTPException: 400 if file format is invalid or image is corrupted
-        HTTPException: 500 if model loading fails or internal processing error
-    """
+            description="Detect and classify Vietnam Citizens Card or Driving License using YOLO + OCR")
+async def detect_card(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(('.jpg', '.png', '.jpeg')):
         raise HTTPException(status_code=400, detail="File must be an image (jpg, png, jpeg).")
     

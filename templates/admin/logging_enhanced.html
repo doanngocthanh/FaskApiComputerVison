@@ -1,0 +1,1862 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Advanced Logging Management - Admin Panel{% endblock %}
+
+{% block page_title %}Advanced Logging Management{% endblock %}
+{% block page_subtitle %}Monitor, analyze and configure endpoint logging with detailed insights{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-widget {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: transform 0.3s;
+    }
+
+    .stats-widget:hover {
+        transform: translateY(-5px);
+    }
+
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .stats-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+
+    .log-entry {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s;
+    }
+
+    .log-entry:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        border-color: #007bff;
+    }
+
+    .log-header {
+        background: #f8f9fa;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .log-body {
+        padding: 1rem;
+        display: none;
+    }
+
+    .log-body.show {
+        display: block;
+    }
+
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .method-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+        font-weight: bold;
+    }
+
+    .log-json {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 1rem;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .filter-panel {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .view-mode-btn {
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .timeline-container {
+        position: relative;
+        padding: 2rem 0;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-left: 2rem;
+        margin-bottom: 1rem;
+        border-left: 2px solid #dee2e6;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -6px;
+        top: 0.5rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #007bff;
+    }
+
+    .real-time-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #28a745;
+        border-radius: 50%;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+
+    .log-table .table {
+        font-size: 0.875rem;
+    }
+
+    .expandable-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+
+    .expandable-content.expanded {
+        max-height: 1000px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Real-time Stats Dashboard -->
+    <div class="row mb-4">
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="stats-widget">
+                <div class="stats-number" id="total-requests">0</div>
+                <div class="stats-label">
+                    <span class="real-time-indicator"></span>
+                    Total Requests
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="stats-widget" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);">
+                <div class="stats-number" id="success-rate">0%</div>
+                <div class="stats-label">Success Rate</div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="stats-widget" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);">
+                <div class="stats-number" id="error-count">0</div>
+                <div class="stats-label">Errors</div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="stats-widget" style="background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);">
+                <div class="stats-number" id="avg-response-time">0ms</div>
+                <div class="stats-label">Avg Response</div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="stats-widget" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="stats-number" id="active-endpoints">0</div>
+                <div class="stats-label">Active Endpoints</div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="stats-widget" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="stats-number" id="log-size">0MB</div>
+                <div class="stats-label">Log File Size</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Request Volume (Last 24h)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="requestVolumeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Response Time Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="responseTimeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Code Distribution & Top Endpoints -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Status Code Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="statusCodeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Top Endpoints by Request Volume</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Endpoint</th>
+                                    <th>Method</th>
+                                    <th>Requests</th>
+                                    <th>Avg Response</th>
+                                    <th>Error Rate</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="top-endpoints-table">
+                                <!-- Data will be loaded -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <ul class="nav nav-tabs card-header-tabs" id="loggingTabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#real-time-logs">
+                        <i class="fas fa-stream"></i> Real-time Logs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#log-search">
+                        <i class="fas fa-search"></i> Advanced Search
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#endpoint-config">
+                        <i class="fas fa-cog"></i> Endpoint Config
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#log-analysis">
+                        <i class="fas fa-chart-bar"></i> Log Analysis
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#system-health">
+                        <i class="fas fa-heart"></i> System Health
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Real-time Logs Tab -->
+                <div class="tab-pane fade show active" id="real-time-logs">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>
+                            <span class="real-time-indicator"></span>
+                            Live Log Stream
+                        </h5>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm view-mode-btn" onclick="setViewMode('table')" id="table-view-btn">
+                                <i class="fas fa-table"></i> Table
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm view-mode-btn" onclick="setViewMode('cards')" id="cards-view-btn">
+                                <i class="fas fa-th-large"></i> Cards
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm view-mode-btn" onclick="setViewMode('timeline')" id="timeline-view-btn">
+                                <i class="fas fa-list"></i> Timeline
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="toggleAutoRefresh()" id="auto-refresh-btn">
+                                <i class="fas fa-play"></i> Auto Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Filters -->
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <select class="form-control form-control-sm" id="quick-level-filter">
+                                <option value="">All Levels</option>
+                                <option value="ERROR">Errors Only</option>
+                                <option value="WARNING">Warnings</option>
+                                <option value="INFO">Info</option>
+                                <option value="DEBUG">Debug</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-control form-control-sm" id="quick-method-filter">
+                                <option value="">All Methods</option>
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="DELETE">DELETE</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-control form-control-sm" id="quick-status-filter">
+                                <option value="">All Status</option>
+                                <option value="2xx">Success (2xx)</option>
+                                <option value="4xx">Client Error (4xx)</option>
+                                <option value="5xx">Server Error (5xx)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" id="quick-endpoint-filter" placeholder="Filter by endpoint...">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" id="quick-ip-filter" placeholder="Filter by IP...">
+                        </div>
+                    </div>
+
+                    <!-- Log Display Area -->
+                    <div id="log-display-area">
+                        <!-- Table View -->
+                        <div class="log-table" id="table-view" style="display: none;">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th width="15%">Timestamp</th>
+                                            <th width="8%">Method</th>
+                                            <th width="25%">Endpoint</th>
+                                            <th width="12%">IP Address</th>
+                                            <th width="8%">Status</th>
+                                            <th width="10%">Response Time</th>
+                                            <th width="8%">Size</th>
+                                            <th width="14%">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="logs-table-body">
+                                        <!-- Data will be loaded -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Cards View -->
+                        <div id="cards-view" style="display: block;">
+                            <div id="logs-cards-container">
+                                <!-- Log cards will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- Timeline View -->
+                        <div id="timeline-view" style="display: none;">
+                            <div class="timeline-container" id="logs-timeline-container">
+                                <!-- Timeline items will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Load More / Pagination -->
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-primary" onclick="loadMoreLogs()" id="load-more-btn">
+                            <i class="fas fa-arrow-down"></i> Load More Logs
+                        </button>
+                        <span class="ml-3 text-muted" id="log-count-display">Showing 0 logs</span>
+                    </div>
+                </div>
+
+                <!-- Advanced Search Tab -->
+                <div class="tab-pane fade" id="log-search">
+                    <div class="filter-panel">
+                        <h5 class="mb-3">Advanced Log Search & Filtering</h5>
+                        <form id="advanced-search-form">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label>Date Range:</label>
+                                    <input type="datetime-local" class="form-control mb-2" id="search-start-date">
+                                    <input type="datetime-local" class="form-control" id="search-end-date">
+                                </div>
+                                <div class="col-md-3">
+                                    <label>Request Details:</label>
+                                    <select class="form-control mb-2" id="search-method">
+                                        <option value="">All Methods</option>
+                                        <option value="GET">GET</option>
+                                        <option value="POST">POST</option>
+                                        <option value="PUT">PUT</option>
+                                        <option value="DELETE">DELETE</option>
+                                        <option value="PATCH">PATCH</option>
+                                    </select>
+                                    <input type="text" class="form-control" id="search-endpoint" placeholder="Endpoint pattern...">
+                                </div>
+                                <div class="col-md-3">
+                                    <label>Response Details:</label>
+                                    <input type="number" class="form-control mb-2" id="search-status-code" placeholder="Status code">
+                                    <input type="number" class="form-control" id="search-min-response-time" placeholder="Min response time (ms)">
+                                </div>
+                                <div class="col-md-3">
+                                    <label>Client & Content:</label>
+                                    <input type="text" class="form-control mb-2" id="search-client-ip" placeholder="Client IP">
+                                    <input type="text" class="form-control" id="search-user-agent" placeholder="User agent contains...">
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    <label>Log Level:</label>
+                                    <select class="form-control" id="search-log-level">
+                                        <option value="">All Levels</option>
+                                        <option value="DEBUG">DEBUG</option>
+                                        <option value="INFO">INFO</option>
+                                        <option value="WARNING">WARNING</option>
+                                        <option value="ERROR">ERROR</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Content Search:</label>
+                                    <input type="text" class="form-control" id="search-content" placeholder="Search in request/response body...">
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Limit Results:</label>
+                                    <select class="form-control" id="search-limit">
+                                        <option value="50">50 results</option>
+                                        <option value="100" selected>100 results</option>
+                                        <option value="500">500 results</option>
+                                        <option value="1000">1000 results</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Search Logs
+                                </button>
+                                <button type="button" class="btn btn-secondary ml-2" onclick="clearAdvancedSearch()">
+                                    <i class="fas fa-times"></i> Clear
+                                </button>
+                                <button type="button" class="btn btn-success ml-2" onclick="exportSearchResults()">
+                                    <i class="fas fa-download"></i> Export Results
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Search Results -->
+                    <div id="search-results-container">
+                        <!-- Search results will be displayed here -->
+                    </div>
+                </div>
+
+                <!-- Endpoint Configuration Tab -->
+                <div class="tab-pane fade" id="endpoint-config">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Endpoint Logging Configuration</h5>
+                        <div>
+                            <button class="btn btn-success btn-sm mr-2" onclick="enableAllEndpoints()">
+                                <i class="fas fa-check-circle"></i> Enable All
+                            </button>
+                            <button class="btn btn-warning btn-sm mr-2" onclick="disableAllEndpoints()">
+                                <i class="fas fa-times-circle"></i> Disable All
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="refreshEndpoints()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Global Logging Settings -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Global Logging Settings</h6>
+                        </div>
+                        <div class="card-body">
+                            <form id="global-logging-form">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="global-logging-enabled" checked>
+                                            <label class="form-check-label" for="global-logging-enabled">
+                                                Enable Global Logging
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="global-log-level">Default Log Level</label>
+                                        <select class="form-control form-control-sm" id="global-log-level">
+                                            <option value="DEBUG">DEBUG</option>
+                                            <option value="INFO" selected>INFO</option>
+                                            <option value="WARNING">WARNING</option>
+                                            <option value="ERROR">ERROR</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="max-body-size">Max Body Size (KB)</label>
+                                        <input type="number" class="form-control form-control-sm" id="max-body-size" value="1000" min="0">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="submit" class="btn btn-primary btn-sm mt-4">
+                                            <i class="fas fa-save"></i> Save Global Settings
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="global-log-request-body" checked>
+                                            <label class="form-check-label" for="global-log-request-body">
+                                                Log Request Bodies (Default)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="global-log-response-body">
+                                            <label class="form-check-label" for="global-log-response-body">
+                                                Log Response Bodies (Default)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="global-log-headers" checked>
+                                            <label class="form-check-label" for="global-log-headers">
+                                                Log Headers (Default)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Endpoints Table -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="endpoints-table">
+                            <thead>
+                                <tr>
+                                    <th width="8%">
+                                        <input type="checkbox" id="select-all-endpoints" onclick="toggleAllEndpoints()">
+                                    </th>
+                                    <th width="10%">Method</th>
+                                    <th width="30%">Path</th>
+                                    <th width="15%">Description</th>
+                                    <th width="10%">Log Enabled</th>
+                                    <th width="10%">Log Request</th>
+                                    <th width="10%">Log Response</th>
+                                    <th width="7%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="endpoints-table-body">
+                                <!-- Data will be loaded via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary btn-sm" onclick="bulkUpdateSelected('enable')">
+                            <i class="fas fa-check"></i> Enable Selected
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="bulkUpdateSelected('disable')">
+                            <i class="fas fa-times"></i> Disable Selected
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="bulkUpdateSelected('log-request')">
+                            <i class="fas fa-arrow-right"></i> Enable Request Logging
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="bulkUpdateSelected('log-response')">
+                            <i class="fas fa-arrow-left"></i> Enable Response Logging
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Log Analysis Tab -->
+                <div class="tab-pane fade" id="log-analysis">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Error Analysis</h5>
+                                    <small class="text-muted">Last 7 days error trends</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="errorAnalysisChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Performance Trends</h5>
+                                    <small class="text-muted">Response time patterns</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="performanceTrendsChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Top Error Endpoints</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Endpoint</th>
+                                                    <th>Errors</th>
+                                                    <th>Rate</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="top-error-endpoints">
+                                                <!-- Data will be loaded -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Slowest Endpoints</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Endpoint</th>
+                                                    <th>Avg Time</th>
+                                                    <th>Max Time</th>
+                                                    <th>Requests</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="slowest-endpoints">
+                                                <!-- Data will be loaded -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Detailed Analysis Reports</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <button class="btn btn-outline-primary btn-block mb-2" onclick="generateErrorReport()">
+                                                <i class="fas fa-bug"></i> Error Report
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-outline-success btn-block mb-2" onclick="generatePerformanceReport()">
+                                                <i class="fas fa-tachometer-alt"></i> Performance Report
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-outline-info btn-block mb-2" onclick="generateUsageReport()">
+                                                <i class="fas fa-chart-pie"></i> Usage Report
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="analysis-report-container" class="mt-3">
+                                        <!-- Reports will be displayed here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Health Tab -->
+                <div class="tab-pane fade" id="system-health">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Log File Management</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>File Name</th>
+                                                    <th>Size</th>
+                                                    <th>Lines</th>
+                                                    <th>Last Modified</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="log-files-table">
+                                                <!-- Data will be loaded -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">System Status</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <strong>Logging System:</strong>
+                                        <span class="badge badge-success ml-2" id="logging-system-status">Active</span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Disk Usage:</strong>
+                                        <div class="progress mt-1">
+                                            <div class="progress-bar" role="progressbar" style="width: 0%" id="disk-usage-bar"></div>
+                                        </div>
+                                        <small class="text-muted" id="disk-usage-text">0% used</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Cleanup Options:</strong>
+                                        <div class="mt-2">
+                                            <select class="form-control form-control-sm mb-2" id="cleanup-days">
+                                                <option value="1">1 day</option>
+                                                <option value="3">3 days</option>
+                                                <option value="7" selected>7 days</option>
+                                                <option value="14">14 days</option>
+                                                <option value="30">30 days</option>
+                                            </select>
+                                            <button class="btn btn-warning btn-sm btn-block" onclick="cleanupOldLogs()">
+                                                <i class="fas fa-broom"></i> Cleanup Old Logs
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Detail Modal -->
+<div class="modal fade" id="logDetailModal" tabindex="-1" aria-labelledby="logDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logDetailModalLabel">Log Entry Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Request Details</h6>
+                        <div id="request-details" class="log-json"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Response Details</h6>
+                        <div id="response-details" class="log-json"></div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <h6>Full Log Data</h6>
+                        <div id="full-log-details" class="log-json"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="exportLogEntry()">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Global variables
+let currentLogs = [];
+let currentViewMode = 'cards';
+let autoRefreshInterval = null;
+let charts = {};
+let selectedLogEntry = null;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    loadDashboardData();
+    loadRealTimeLogs();
+    setViewMode('cards');
+});
+
+// Initialize charts
+function initializeCharts() {
+    // Request Volume Chart
+    const reqCtx = document.getElementById('requestVolumeChart').getContext('2d');
+    charts.requestVolume = new Chart(reqCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Requests',
+                data: [],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Response Time Chart
+    const resCtx = document.getElementById('responseTimeChart').getContext('2d');
+    charts.responseTime = new Chart(resCtx, {
+        type: 'bar',
+        data: {
+            labels: ['< 100ms', '100-500ms', '500ms-1s', '1-5s', '> 5s'],
+            datasets: [{
+                label: 'Requests',
+                data: [0, 0, 0, 0, 0],
+                backgroundColor: [
+                    '#28a745',
+                    '#ffc107',
+                    '#fd7e14',
+                    '#dc3545',
+                    '#6f42c1'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Status Code Chart
+    const statusCtx = document.getElementById('statusCodeChart').getContext('2d');
+    charts.statusCode = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['2xx Success', '4xx Client Error', '5xx Server Error'],
+            datasets: [{
+                data: [0, 0, 0],
+                backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Error Analysis Chart
+    const errorCtx = document.getElementById('errorAnalysisChart').getContext('2d');
+    charts.errorAnalysis = new Chart(errorCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '4xx Errors',
+                data: [],
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                tension: 0.1
+            }, {
+                label: '5xx Errors',
+                data: [],
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Performance Trends Chart
+    const perfCtx = document.getElementById('performanceTrendsChart').getContext('2d');
+    charts.performanceTrends = new Chart(perfCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Avg Response Time',
+                data: [],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.1
+            }, {
+                label: 'P95 Response Time',
+                data: [],
+                borderColor: '#fd7e14',
+                backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Response Time (ms)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Load dashboard data
+async function loadDashboardData() {
+    try {
+        const response = await auth.fetch('/api/admin/logging/stats');
+        if (response && response.ok) {
+            const data = await response.json();
+            updateDashboardStats(data.stats);
+            updateCharts(data.stats);
+        }
+    } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+        showToast('Failed to load dashboard data', 'danger');
+    }
+}
+
+// Update dashboard stats
+function updateDashboardStats(stats) {
+    document.getElementById('total-requests').textContent = (stats.total_requests || 0).toLocaleString();
+    document.getElementById('success-rate').textContent = Math.round(stats.success_rate || 0) + '%';
+    document.getElementById('error-count').textContent = (stats.error_count || 0).toLocaleString();
+    document.getElementById('avg-response-time').textContent = Math.round(stats.avg_response_time || 0) + 'ms';
+    document.getElementById('active-endpoints').textContent = stats.active_endpoints || 0;
+    document.getElementById('log-size').textContent = (stats.log_size_mb || 0).toFixed(1) + 'MB';
+}
+
+// Update charts with real data
+function updateCharts(stats) {
+    // Update request volume chart
+    if (stats.request_volume_24h && charts.requestVolume) {
+        const labels = stats.request_volume_24h.map(item => item.hour);
+        const data = stats.request_volume_24h.map(item => item.requests);
+        
+        charts.requestVolume.data.labels = labels;
+        charts.requestVolume.data.datasets[0].data = data;
+        charts.requestVolume.update();
+    }
+    
+    // Update response time distribution
+    if (stats.response_time_distribution && charts.responseTime) {
+        charts.responseTime.data.datasets[0].data = stats.response_time_distribution;
+        charts.responseTime.update();
+    }
+    
+    // Update status code distribution
+    if (stats.status_code_distribution && charts.statusCode) {
+        const statusData = [
+            stats.status_code_distribution['2xx'] || 0,
+            stats.status_code_distribution['4xx'] || 0,
+            stats.status_code_distribution['5xx'] || 0
+        ];
+        charts.statusCode.data.datasets[0].data = statusData;
+        charts.statusCode.update();
+    }
+    
+    // Update top endpoints table
+    if (stats.top_endpoints) {
+        updateTopEndpointsTable(stats.top_endpoints);
+    }
+}
+
+// Update top endpoints table
+function updateTopEndpointsTable(endpoints) {
+    const tbody = document.getElementById('top-endpoints-table');
+    tbody.innerHTML = '';
+    
+    endpoints.forEach(endpoint => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td><code>${endpoint.path}</code></td>
+            <td><span class="badge method-badge bg-${getMethodColor(endpoint.method)}">${endpoint.method}</span></td>
+            <td>${endpoint.requests.toLocaleString()}</td>
+            <td>${endpoint.avg_response_time}ms</td>
+            <td>
+                <span class="badge bg-${endpoint.error_rate > 5 ? 'danger' : endpoint.error_rate > 1 ? 'warning' : 'success'}">
+                    ${endpoint.error_rate}%
+                </span>
+            </td>
+            <td>
+                <span class="badge bg-${endpoint.status === 'active' ? 'success' : 'secondary'}">
+                    ${endpoint.status}
+                </span>
+            </td>
+        `;
+    });
+}
+
+// Load real-time logs
+async function loadRealTimeLogs() {
+    try {
+        showLoading();
+        const response = await auth.fetch('/api/admin/logging/logs?limit=50');
+        if (response && response.ok) {
+            const data = await response.json();
+            currentLogs = data.logs || [];
+            updateLogDisplay();
+            document.getElementById('log-count-display').textContent = `Showing ${currentLogs.length} logs`;
+        }
+    } catch (error) {
+        console.error('Failed to load logs:', error);
+        showToast('Failed to load logs', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Update log display based on current view mode
+function updateLogDisplay() {
+    const filteredLogs = applyQuickFilters(currentLogs);
+    
+    switch (currentViewMode) {
+        case 'table':
+            updateTableView(filteredLogs);
+            break;
+        case 'cards':
+            updateCardsView(filteredLogs);
+            break;
+        case 'timeline':
+            updateTimelineView(filteredLogs);
+            break;
+    }
+}
+
+// Apply quick filters
+function applyQuickFilters(logs) {
+    const levelFilter = document.getElementById('quick-level-filter').value;
+    const methodFilter = document.getElementById('quick-method-filter').value;
+    const statusFilter = document.getElementById('quick-status-filter').value;
+    const endpointFilter = document.getElementById('quick-endpoint-filter').value.toLowerCase();
+    const ipFilter = document.getElementById('quick-ip-filter').value.toLowerCase();
+
+    return logs.filter(log => {
+        if (levelFilter && log.level !== levelFilter) return false;
+        if (methodFilter && log.method !== methodFilter) return false;
+        
+        if (statusFilter) {
+            const status = log.status_code;
+            if (statusFilter === '2xx' && (status < 200 || status >= 300)) return false;
+            if (statusFilter === '4xx' && (status < 400 || status >= 500)) return false;
+            if (statusFilter === '5xx' && status < 500) return false;
+        }
+        
+        if (endpointFilter && !log.path?.toLowerCase().includes(endpointFilter)) return false;
+        if (ipFilter && !log.client_ip?.toLowerCase().includes(ipFilter)) return false;
+        
+        return true;
+    });
+}
+
+// Set view mode
+function setViewMode(mode) {
+    currentViewMode = mode;
+    
+    // Update button states
+    document.querySelectorAll('.view-mode-btn').forEach(btn => btn.classList.remove('btn-primary'));
+    document.querySelectorAll('.view-mode-btn').forEach(btn => btn.classList.add('btn-outline-primary'));
+    document.getElementById(`${mode}-view-btn`).classList.remove('btn-outline-primary');
+    document.getElementById(`${mode}-view-btn`).classList.add('btn-primary');
+    
+    // Show/hide views
+    document.getElementById('table-view').style.display = mode === 'table' ? 'block' : 'none';
+    document.getElementById('cards-view').style.display = mode === 'cards' ? 'block' : 'none';
+    document.getElementById('timeline-view').style.display = mode === 'timeline' ? 'block' : 'none';
+    
+    updateLogDisplay();
+}
+
+// Update table view
+function updateTableView(logs) {
+    const tbody = document.getElementById('logs-table-body');
+    tbody.innerHTML = '';
+    
+    logs.forEach((log, index) => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${new Date(log.timestamp || log.log_timestamp).toLocaleString()}</td>
+            <td><span class="badge method-badge bg-${getMethodColor(log.method)}">${log.method || 'N/A'}</span></td>
+            <td><code>${log.path || 'N/A'}</code></td>
+            <td>${log.client_ip || 'N/A'}</td>
+            <td><span class="badge status-badge bg-${getStatusColor(log.status_code)}">${log.status_code || 'N/A'}</span></td>
+            <td>${log.response_time_ms ? log.response_time_ms + 'ms' : 'N/A'}</td>
+            <td>${log.response_size ? formatBytes(log.response_size) : 'N/A'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-info" onclick="showLogDetail(${index})">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewLogJson(${index})">
+                    <i class="fas fa-code"></i>
+                </button>
+            </td>
+        `;
+    });
+}
+
+// Update cards view
+function updateCardsView(logs) {
+    const container = document.getElementById('logs-cards-container');
+    container.innerHTML = '';
+    
+    logs.forEach((log, index) => {
+        const card = document.createElement('div');
+        card.className = 'log-entry';
+        card.innerHTML = `
+            <div class="log-header" onclick="toggleLogBody(${index})">
+                <div>
+                    <span class="badge method-badge bg-${getMethodColor(log.method)}">${log.method || 'N/A'}</span>
+                    <span class="badge status-badge bg-${getStatusColor(log.status_code)}">${log.status_code || 'N/A'}</span>
+                    <code class="ml-2">${log.path || 'N/A'}</code>
+                </div>
+                <div>
+                    <small class="text-muted">${new Date(log.timestamp || log.log_timestamp).toLocaleString()}</small>
+                    <i class="fas fa-chevron-down ml-2"></i>
+                </div>
+            </div>
+            <div class="log-body expandable-content" id="log-body-${index}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Client Info:</strong><br>
+                        IP: ${log.client_ip || 'N/A'}<br>
+                        User Agent: ${log.user_agent || 'N/A'}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Response Info:</strong><br>
+                        Time: ${log.response_time_ms ? log.response_time_ms + 'ms' : 'N/A'}<br>
+                        Size: ${log.response_size ? formatBytes(log.response_size) : 'N/A'}
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-info" onclick="showLogDetail(${index})">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewLogJson(${index})">
+                        <i class="fas fa-code"></i> View JSON
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Update timeline view
+function updateTimelineView(logs) {
+    const container = document.getElementById('logs-timeline-container');
+    container.innerHTML = '';
+    
+    logs.forEach((log, index) => {
+        const item = document.createElement('div');
+        item.className = 'timeline-item';
+        item.innerHTML = `
+            <div class="timeline-marker bg-${getStatusColor(log.status_code)}"></div>
+            <div class="timeline-content">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge method-badge bg-${getMethodColor(log.method)}">${log.method || 'N/A'}</span>
+                        <code class="ml-2">${log.path || 'N/A'}</code>
+                        <span class="badge status-badge bg-${getStatusColor(log.status_code)} ml-2">${log.status_code || 'N/A'}</span>
+                    </div>
+                    <small class="text-muted">${new Date(log.timestamp || log.log_timestamp).toLocaleString()}</small>
+                </div>
+                <div class="mt-1">
+                    <small>From: ${log.client_ip || 'N/A'} | Response: ${log.response_time_ms ? log.response_time_ms + 'ms' : 'N/A'}</small>
+                    <button class="btn btn-sm btn-outline-info ml-2" onclick="showLogDetail(${index})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// Toggle log body in cards view
+function toggleLogBody(index) {
+    const logBody = document.getElementById(`log-body-${index}`);
+    logBody.classList.toggle('expanded');
+}
+
+// Show log detail modal
+function showLogDetail(index) {
+    const log = currentLogs[index];
+    selectedLogEntry = log;
+    
+    // Populate request details
+    const requestDetails = {
+        method: log.method,
+        path: log.path,
+        headers: log.request_headers || {},
+        body: log.request_body || 'No body',
+        client_ip: log.client_ip,
+        user_agent: log.user_agent
+    };
+    document.getElementById('request-details').textContent = JSON.stringify(requestDetails, null, 2);
+    
+    // Populate response details
+    const responseDetails = {
+        status_code: log.status_code,
+        headers: log.response_headers || {},
+        body: log.response_body || 'No body',
+        size: log.response_size,
+        time_ms: log.response_time_ms
+    };
+    document.getElementById('response-details').textContent = JSON.stringify(responseDetails, null, 2);
+    
+    // Populate full log
+    document.getElementById('full-log-details').textContent = JSON.stringify(log, null, 2);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('logDetailModal'));
+    modal.show();
+}
+
+// View log as JSON
+function viewLogJson(index) {
+    const log = currentLogs[index];
+    const jsonWindow = window.open('', '_blank');
+    jsonWindow.document.write(`
+        <html>
+            <head><title>Log Entry JSON</title></head>
+            <body>
+                <pre>${JSON.stringify(log, null, 2)}</pre>
+            </body>
+        </html>
+    `);
+}
+
+// Utility functions
+function getMethodColor(method) {
+    const colors = {
+        'GET': 'success',
+        'POST': 'primary',
+        'PUT': 'warning',
+        'DELETE': 'danger',
+        'PATCH': 'info'
+    };
+    return colors[method] || 'secondary';
+}
+
+function getStatusColor(status) {
+    if (status >= 500) return 'danger';
+    if (status >= 400) return 'warning';
+    if (status >= 300) return 'info';
+    if (status >= 200) return 'success';
+    return 'secondary';
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+// Auto refresh functionality
+function toggleAutoRefresh() {
+    const btn = document.getElementById('auto-refresh-btn');
+    
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        btn.innerHTML = '<i class="fas fa-play"></i> Auto Refresh';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    } else {
+        autoRefreshInterval = setInterval(loadRealTimeLogs, 5000); // Refresh every 5 seconds
+        btn.innerHTML = '<i class="fas fa-pause"></i> Stop Refresh';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+    }
+}
+
+// Quick filter event listeners
+document.getElementById('quick-level-filter').addEventListener('change', updateLogDisplay);
+document.getElementById('quick-method-filter').addEventListener('change', updateLogDisplay);
+document.getElementById('quick-status-filter').addEventListener('change', updateLogDisplay);
+document.getElementById('quick-endpoint-filter').addEventListener('input', updateLogDisplay);
+document.getElementById('quick-ip-filter').addEventListener('input', updateLogDisplay);
+
+// Load more logs
+function loadMoreLogs() {
+    // Implement pagination logic here
+    showToast('Loading more logs...', 'info');
+}
+
+// Export functions
+function exportLogEntry() {
+    if (!selectedLogEntry) return;
+    
+    const dataStr = JSON.stringify(selectedLogEntry, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `log-entry-${new Date().toISOString()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+function exportSearchResults() {
+    if (currentLogs.length === 0) {
+        showToast('No logs to export', 'warning');
+        return;
+    }
+    
+    const dataStr = JSON.stringify(currentLogs, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `log-search-results-${new Date().toISOString()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+// Advanced search
+document.getElementById('advanced-search-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const searchRequest = {
+        start_date: document.getElementById('search-start-date').value || null,
+        end_date: document.getElementById('search-end-date').value || null,
+        method: document.getElementById('search-method').value || null,
+        path: document.getElementById('search-endpoint').value || null,
+        status_code: document.getElementById('search-status-code').value ? parseInt(document.getElementById('search-status-code').value) : null,
+        min_response_time: document.getElementById('search-min-response-time').value ? parseFloat(document.getElementById('search-min-response-time').value) : null,
+        client_ip: document.getElementById('search-client-ip').value || null,
+        log_level: document.getElementById('search-log-level').value || null,
+        limit: parseInt(document.getElementById('search-limit').value)
+    };
+    
+    try {
+        showLoading();
+        const response = await auth.fetch('/api/admin/logging/logs/search', {
+            method: 'POST',
+            body: JSON.stringify(searchRequest)
+        });
+        
+        if (response && response.ok) {
+            const data = await response.json();
+            currentLogs = data.logs || [];
+            updateLogDisplay();
+            document.getElementById('log-count-display').textContent = `Found ${currentLogs.length} logs`;
+            showToast(`Found ${currentLogs.length} matching logs`, 'success');
+        }
+    } catch (error) {
+        console.error('Search failed:', error);
+        showToast('Search failed', 'danger');
+    } finally {
+        hideLoading();
+    }
+});
+
+function clearAdvancedSearch() {
+    document.getElementById('advanced-search-form').reset();
+    loadRealTimeLogs();
+}
+
+// Placeholder functions for additional features
+async function enableAllEndpoints() { 
+    try {
+        await loadEndpointConfiguration();
+        showToast('All endpoints enabled', 'success'); 
+    } catch (error) {
+        showToast('Failed to enable all endpoints', 'danger');
+    }
+}
+
+async function disableAllEndpoints() { 
+    try {
+        await loadEndpointConfiguration();
+        showToast('All endpoints disabled', 'warning'); 
+    } catch (error) {
+        showToast('Failed to disable all endpoints', 'danger');
+    }
+}
+
+async function refreshEndpoints() { 
+    try {
+        await loadEndpointConfiguration();
+        showToast('Endpoints refreshed', 'info'); 
+    } catch (error) {
+        showToast('Failed to refresh endpoints', 'danger');
+    }
+}
+
+// Load endpoint configuration
+async function loadEndpointConfiguration() {
+    try {
+        showLoading();
+        const response = await auth.fetch('/api/admin/logging/endpoints');
+        if (response && response.ok) {
+            const data = await response.json();
+            displayEndpointsTable(data.endpoints);
+            updateGlobalConfig(data.global_config);
+        }
+    } catch (error) {
+        console.error('Failed to load endpoint configuration:', error);
+        showToast('Failed to load endpoint configuration', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Display endpoints in table
+function displayEndpointsTable(endpoints) {
+    const tbody = document.getElementById('endpoints-table-body');
+    tbody.innerHTML = '';
+    
+    endpoints.forEach((endpoint, index) => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>
+                <input type="checkbox" class="endpoint-checkbox" data-index="${index}" value="${endpoint.path}|${endpoint.method}">
+            </td>
+            <td>
+                <span class="badge method-badge bg-${getMethodColor(endpoint.method)}">${endpoint.method}</span>
+            </td>
+            <td>
+                <code>${endpoint.path}</code>
+            </td>
+            <td>
+                <small>${endpoint.description || endpoint.name || 'No description'}</small>
+            </td>
+            <td>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" 
+                           id="enabled-${index}" 
+                           ${endpoint.logging_config.enabled ? 'checked' : ''}
+                           onchange="updateEndpointConfig(${index}, 'enabled', this.checked)">
+                </div>
+            </td>
+            <td>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" 
+                           id="log-request-${index}" 
+                           ${endpoint.logging_config.log_request_body ? 'checked' : ''}
+                           onchange="updateEndpointConfig(${index}, 'log_request_body', this.checked)">
+                </div>
+            </td>
+            <td>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" 
+                           id="log-response-${index}" 
+                           ${endpoint.logging_config.log_response_body ? 'checked' : ''}
+                           onchange="updateEndpointConfig(${index}, 'log_response_body', this.checked)">
+                </div>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-info" onclick="viewEndpointDetails(${index})">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        `;
+    });
+}
+
+// Update global configuration display
+function updateGlobalConfig(config) {
+    if (config) {
+        document.getElementById('global-logging-enabled').checked = config.enabled;
+        document.getElementById('global-log-level').value = config.log_level || 'INFO';
+        document.getElementById('max-body-size').value = config.max_body_size || 1000;
+        document.getElementById('global-log-request-body').checked = config.log_request_body;
+        document.getElementById('global-log-response-body').checked = config.log_response_body;
+        document.getElementById('global-log-headers').checked = config.log_headers !== false;
+    }
+}
+
+// Update endpoint configuration
+async function updateEndpointConfig(index, field, value) {
+    try {
+        const endpoints = await getEndpointsData();
+        const endpoint = endpoints[index];
+        
+        const updateData = {
+            path: endpoint.path,
+            method: endpoint.method,
+            enabled: field === 'enabled' ? value : endpoint.logging_config.enabled,
+            log_request_body: field === 'log_request_body' ? value : endpoint.logging_config.log_request_body,
+            log_response_body: field === 'log_response_body' ? value : endpoint.logging_config.log_response_body
+        };
+        
+        const response = await auth.fetch('/api/admin/logging/endpoint-config', {
+            method: 'POST',
+            body: JSON.stringify(updateData)
+        });
+        
+        if (response && response.ok) {
+            showToast(`Endpoint ${field} updated successfully`, 'success');
+        } else {
+            showToast(`Failed to update endpoint ${field}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Failed to update endpoint config:', error);
+        showToast('Failed to update endpoint configuration', 'danger');
+    }
+}
+
+// Get current endpoints data
+async function getEndpointsData() {
+    const response = await auth.fetch('/api/admin/logging/endpoints');
+    if (response && response.ok) {
+        const data = await response.json();
+        return data.endpoints;
+    }
+    return [];
+}
+
+// Toggle all endpoints selection
+function toggleAllEndpoints() {
+    const selectAll = document.getElementById('select-all-endpoints');
+    const checkboxes = document.querySelectorAll('.endpoint-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+// Bulk update selected endpoints
+async function bulkUpdateSelected(action) {
+    const selectedCheckboxes = document.querySelectorAll('.endpoint-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        showToast('Please select at least one endpoint', 'warning');
+        return;
+    }
+    
+    const configs = [];
+    for (const checkbox of selectedCheckboxes) {
+        const [path, method] = checkbox.value.split('|');
+        const config = {
+            path,
+            method,
+            enabled: action === 'enable' ? true : action === 'disable' ? false : undefined,
+            log_request_body: action === 'log-request' ? true : undefined,
+            log_response_body: action === 'log-response' ? true : undefined
+        };
+        
+        // Get current values for fields not being updated
+        const endpoints = await getEndpointsData();
+        const endpoint = endpoints.find(ep => ep.path === path && ep.method === method);
+        if (endpoint) {
+            if (config.enabled === undefined) config.enabled = endpoint.logging_config.enabled;
+            if (config.log_request_body === undefined) config.log_request_body = endpoint.logging_config.log_request_body;
+            if (config.log_response_body === undefined) config.log_response_body = endpoint.logging_config.log_response_body;
+        }
+        
+        configs.push(config);
+    }
+    
+    try {
+        showLoading();
+        const response = await auth.fetch('/api/admin/logging/endpoint-config/bulk', {
+            method: 'POST',
+            body: JSON.stringify(configs)
+        });
+        
+        if (response && response.ok) {
+            const result = await response.json();
+            showToast(result.message, 'success');
+            await loadEndpointConfiguration();
+        } else {
+            showToast('Failed to bulk update endpoints', 'danger');
+        }
+    } catch (error) {
+        console.error('Bulk update failed:', error);
+        showToast('Failed to bulk update endpoints', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+// View endpoint details
+function viewEndpointDetails(index) {
+    showToast('Endpoint details view not implemented yet', 'info');
+}
+
+// Global logging form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const globalForm = document.getElementById('global-logging-form');
+    if (globalForm) {
+        globalForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const config = {
+                enabled: document.getElementById('global-logging-enabled').checked,
+                log_level: document.getElementById('global-log-level').value,
+                max_body_size: parseInt(document.getElementById('max-body-size').value),
+                log_request_body: document.getElementById('global-log-request-body').checked,
+                log_response_body: document.getElementById('global-log-response-body').checked,
+                log_headers: document.getElementById('global-log-headers').checked
+            };
+            
+            try {
+                showLoading();
+                const response = await auth.fetch('/api/admin/logging/global-config', {
+                    method: 'POST',
+                    body: JSON.stringify(config)
+                });
+                
+                if (response && response.ok) {
+                    showToast('Global logging settings saved successfully', 'success');
+                } else {
+                    showToast('Failed to save global logging settings', 'danger');
+                }
+            } catch (error) {
+                console.error('Failed to save global config:', error);
+                showToast('Failed to save global logging settings', 'danger');
+            } finally {
+                hideLoading();
+            }
+        });
+    }
+    
+    // Load endpoint configuration when the tab is shown
+    const endpointTab = document.querySelector('a[href="#endpoint-config"]');
+    if (endpointTab) {
+        endpointTab.addEventListener('shown.bs.tab', function() {
+            loadEndpointConfiguration();
+        });
+    }
+});
+
+function generateErrorReport() { 
+    loadErrorAnalysis();
+    showToast('Loading error analysis...', 'info'); 
+}
+
+function generatePerformanceReport() { 
+    loadPerformanceAnalysis();
+    showToast('Loading performance analysis...', 'info'); 
+}
+
+function generateUsageReport() { 
+    showToast('Generating usage report...', 'info'); 
+}
+
+function cleanupOldLogs() { 
+    showToast('Cleaning up old logs...', 'warning'); 
+}
+
+// Load error analysis data
+async function loadErrorAnalysis() {
+    try {
+        const response = await auth.fetch('/api/admin/logging/analysis/errors?days=7');
+        if (response && response.ok) {
+            const data = await response.json();
+            updateErrorAnalysisChart(data.analysis);
+            updateTopErrorEndpoints(data.analysis.error_by_endpoint);
+        }
+    } catch (error) {
+        console.error('Failed to load error analysis:', error);
+        showToast('Failed to load error analysis', 'danger');
+    }
+}
+
+// Load performance analysis data
+async function loadPerformanceAnalysis() {
+    try {
+        const response = await auth.fetch('/api/admin/logging/analysis/performance?days=7');
+        if (response && response.ok) {
+            const data = await response.json();
+            updatePerformanceTrendsChart(data.analysis);
+            updateSlowestEndpoints(data.analysis.slowest_endpoints);
+        }
+    } catch (error) {
+        console.error('Failed to load performance analysis:', error);
+        showToast('Failed to load performance analysis', 'danger');
+    }
+}
+
+// Update error analysis chart
+function updateErrorAnalysisChart(analysis) {
+    if (!charts.errorAnalysis) return;
+    
+    // Generate last 7 days labels
+    const labels = [];
+    const clientErrors = [];
+    const serverErrors = [];
+    
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        labels.push(date.toLocaleDateString());
+        
+        // Mock data - replace with real analysis
+        clientErrors.push(Math.floor(Math.random() * 20) + 5);
+        serverErrors.push(Math.floor(Math.random() * 10) + 1);
+    }
+    
+    charts.errorAnalysis.data.labels = labels;
+    charts.errorAnalysis.data.datasets[0].data = clientErrors;
+    charts.errorAnalysis.data.datasets[1].data = serverErrors;
+    charts.errorAnalysis.update();
+}
+
+// Update performance trends chart
+function updatePerformanceTrendsChart(analysis) {
+    if (!charts.performanceTrends) return;
+    
+    // Generate hourly performance data for last 24 hours
+    const labels = [];
+    const avgTimes = [];
+    const p95Times = [];
+    
+    for (let i = 23; i >= 0; i--) {
+        const hour = new Date();
+        hour.setHours(hour.getHours() - i);
+        labels.push(hour.getHours() + ':00');
+        
+        // Mock data - replace with real analysis
+        const avgTime = 100 + Math.random() * 200;
+        avgTimes.push(avgTime);
+        p95Times.push(avgTime + Math.random() * 300);
+    }
+    
+    charts.performanceTrends.data.labels = labels;
+    charts.performanceTrends.data.datasets[0].data = avgTimes;
+    charts.performanceTrends.data.datasets[1].data = p95Times;
+    charts.performanceTrends.update();
+}
+
+// Update top error endpoints table
+function updateTopErrorEndpoints(errorEndpoints) {
+    const tbody = document.getElementById('top-error-endpoints');
+    tbody.innerHTML = '';
+    
+    // Convert object to array and sort
+    const sortedEndpoints = Object.entries(errorEndpoints || {})
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5);
+    
+    sortedEndpoints.forEach(([endpoint, count]) => {
+        const row = tbody.insertRow();
+        const errorRate = Math.min((count / 100) * 100, 100); // Mock calculation
+        row.innerHTML = `
+            <td><code>${endpoint}</code></td>
+            <td><span class="badge bg-danger">${count}</span></td>
+            <td>${errorRate.toFixed(1)}%</td>
+            <td>
+                <span class="badge bg-${errorRate > 10 ? 'danger' : errorRate > 5 ? 'warning' : 'success'}">
+                    ${errorRate > 10 ? 'Critical' : errorRate > 5 ? 'Warning' : 'Normal'}
+                </span>
+            </td>
+        `;
+    });
+}
+
+// Update slowest endpoints table
+function updateSlowestEndpoints(slowestEndpoints) {
+    const tbody = document.getElementById('slowest-endpoints');
+    tbody.innerHTML = '';
+    
+    (slowestEndpoints || []).slice(0, 5).forEach(endpoint => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td><code>${endpoint.endpoint}</code></td>
+            <td>${endpoint.avg_response_time}ms</td>
+            <td>${endpoint.max_response_time}ms</td>
+            <td>${endpoint.request_count}</td>
+        `;
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,355 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Overview of your API system{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary me-2" onclick="refreshData()">
+    <i class="fas fa-sync"></i> Refresh
+</button>
+<button class="btn btn-success" onclick="window.location.href='/admin/management'">
+    <i class="fas fa-cogs"></i> Manage APIs
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <i class="fas fa-list fa-2x mb-2"></i>
+            <h3 id="total-endpoints">0</h3>
+            <p class="mb-0">Total Endpoints</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <i class="fas fa-eye fa-2x mb-2"></i>
+            <h3 id="visible-endpoints">0</h3>
+            <p class="mb-0">Visible Endpoints</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <i class="fas fa-eye-slash fa-2x mb-2"></i>
+            <h3 id="hidden-endpoints">0</h3>
+            <p class="mb-0">Hidden Endpoints</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <i class="fas fa-route fa-2x mb-2"></i>
+            <h3 id="unique-routers">0</h3>
+            <p class="mb-0">Routers</p>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-primary w-100 mb-2" onclick="syncEndpoints()">
+                            <i class="fas fa-sync"></i><br>
+                            <small>Sync Endpoints</small>
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-success w-100 mb-2" onclick="window.open('/docs', '_blank')">
+                            <i class="fas fa-book"></i><br>
+                            <small>View API Docs</small>
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-info w-100 mb-2" onclick="window.location.href='/admin/settings'">
+                            <i class="fas fa-cog"></i><br>
+                            <small>Settings</small>
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-warning w-100 mb-2" onclick="refreshSwagger()">
+                            <i class="fas fa-refresh"></i><br>
+                            <small>Refresh Swagger</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line"></i> API Usage Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-12">
+                        <h6>Endpoints by Method</h6>
+                        <div id="methods-chart" class="mb-3">
+                            <!-- Chart will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <h6>Endpoints by Router</h6>
+                        <div id="routers-list">
+                            <!-- Router list will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> System Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Swagger Configuration:</strong>
+                    <div id="swagger-status" class="text-muted">Loading...</div>
+                </div>
+                
+                <div class="mb-3">
+                    <strong>Documentation Mode:</strong>
+                    <div id="doc-mode" class="text-muted">Loading...</div>
+                </div>
+                
+                <div class="mb-3">
+                    <strong>Last Sync:</strong>
+                    <div id="last-sync" class="text-muted">Never</div>
+                </div>
+                
+                <hr>
+                
+                <div class="mb-2">
+                    <strong>Current User:</strong>
+                    <div id="current-user" class="text-muted">Loading...</div>
+                </div>
+                
+                <div class="mb-2">
+                    <strong>Session Expires:</strong>
+                    <div id="session-expires" class="text-muted">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block init_js %}
+loadDashboardData();
+{% endblock %}
+
+{% block extra_js %}
+let dashboardData = {
+    endpoints: [],
+    settings: {},
+    stats: {}
+};
+
+async function loadDashboardData() {
+    try {
+        showLoading();
+        
+        // Load endpoints
+        const endpointsResponse = await fetch('/api/admin/endpoints');
+        if (endpointsResponse.ok) {
+            const endpointsData = await endpointsResponse.json();
+            dashboardData.endpoints = endpointsData.endpoints || [];
+        }
+        
+        // Load settings
+        const settingsResponse = await fetch('/api/admin/settings');
+        if (settingsResponse.ok) {
+            const settingsData = await settingsResponse.json();
+            dashboardData.settings = settingsData.settings || {};
+        }
+        
+        updateDashboard();
+        
+    } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+        showToast('Failed to load dashboard data', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function updateDashboard() {
+    updateStats();
+    updateMethodsChart();
+    updateRoutersList();
+    updateSystemInfo();
+}
+
+function updateStats() {
+    const endpoints = dashboardData.endpoints;
+    const total = endpoints.length;
+    const visible = endpoints.filter(e => e.is_visible).length;
+    const hidden = total - visible;
+    const routers = [...new Set(endpoints.map(e => e.router_name))].length;
+    
+    document.getElementById('total-endpoints').textContent = total;
+    document.getElementById('visible-endpoints').textContent = visible;
+    document.getElementById('hidden-endpoints').textContent = hidden;
+    document.getElementById('unique-routers').textContent = routers;
+}
+
+function updateMethodsChart() {
+    const endpoints = dashboardData.endpoints;
+    const methodCounts = {};
+    
+    endpoints.forEach(endpoint => {
+        const method = endpoint.endpoint_method;
+        methodCounts[method] = (methodCounts[method] || 0) + 1;
+    });
+    
+    const chartContainer = document.getElementById('methods-chart');
+    chartContainer.innerHTML = '';
+    
+    Object.entries(methodCounts).forEach(([method, count]) => {
+        const percentage = (count / endpoints.length) * 100;
+        const colorClass = {
+            'GET': 'success',
+            'POST': 'primary',
+            'PUT': 'warning',
+            'DELETE': 'danger',
+            'PATCH': 'info'
+        }[method] || 'secondary';
+        
+        chartContainer.innerHTML += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge bg-${colorClass}">${method}</span>
+                <div class="flex-grow-1 mx-3">
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-${colorClass}" style="width: ${percentage}%"></div>
+                    </div>
+                </div>
+                <span class="fw-bold">${count}</span>
+            </div>
+        `;
+    });
+}
+
+function updateRoutersList() {
+    const endpoints = dashboardData.endpoints;
+    const routerCounts = {};
+    
+    endpoints.forEach(endpoint => {
+        const router = endpoint.router_name;
+        if (!routerCounts[router]) {
+            routerCounts[router] = { total: 0, visible: 0 };
+        }
+        routerCounts[router].total++;
+        if (endpoint.is_visible) {
+            routerCounts[router].visible++;
+        }
+    });
+    
+    const routersContainer = document.getElementById('routers-list');
+    routersContainer.innerHTML = '';
+    
+    Object.entries(routerCounts).forEach(([router, counts]) => {
+        const visibilityPercentage = (counts.visible / counts.total) * 100;
+        
+        routersContainer.innerHTML += `
+            <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                <div>
+                    <strong>${router}</strong>
+                    <br><small class="text-muted">${counts.visible}/${counts.total} visible</small>
+                </div>
+                <div class="text-end">
+                    <div class="progress" style="width: 100px; height: 15px;">
+                        <div class="progress-bar bg-success" style="width: ${visibilityPercentage}%"></div>
+                    </div>
+                    <small>${Math.round(visibilityPercentage)}%</small>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function updateSystemInfo() {
+    const settings = dashboardData.settings;
+    
+    // Update system info
+    document.getElementById('swagger-status').textContent = 
+        settings.show_error_responses === 'true' ? 'Full Documentation' : 'Clean Documentation';
+    
+    document.getElementById('doc-mode').textContent = 
+        settings.documentation_mode || 'clean';
+    
+    // Update user info
+    if (currentUser && currentUser.user) {
+        document.getElementById('current-user').textContent = currentUser.user.username;
+    }
+    
+    // Calculate session expiry (assuming 24 hours from token)
+    const tokenCookie = document.cookie.split('; ').find(row => row.startsWith('admin_token='));
+    if (tokenCookie) {
+        // This is a simple estimation - in real app you'd decode the JWT
+        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        document.getElementById('session-expires').textContent = expires.toLocaleString();
+    }
+}
+
+async function refreshData() {
+    showToast('Refreshing dashboard data...', 'info');
+    await loadDashboardData();
+    showToast('Dashboard refreshed successfully!', 'success');
+}
+
+async function syncEndpoints() {
+    try {
+        showLoading();
+        const response = await fetch('/api/admin/sync', { method: 'POST' });
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast(`Sync completed! New: ${data.stats.new_endpoints}, Updated: ${data.stats.updated_endpoints}`, 'success');
+            await loadDashboardData();
+        } else {
+            showToast('Sync failed', 'danger');
+        }
+    } catch (error) {
+        console.error('Sync error:', error);
+        showToast('Sync failed', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function refreshSwagger() {
+    try {
+        showLoading();
+        const response = await fetch('/api/admin/refresh-swagger', { method: 'POST' });
+        
+        if (response.ok) {
+            showToast('Swagger documentation refreshed!', 'success');
+        } else {
+            showToast('Failed to refresh Swagger', 'danger');
+        }
+    } catch (error) {
+        console.error('Swagger refresh error:', error);
+        showToast('Failed to refresh Swagger', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+{% endblock %}

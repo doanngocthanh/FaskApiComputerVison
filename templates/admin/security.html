@@ -1,0 +1,431 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Security Management - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">Security Management</h1>
+                <button class="btn btn-primary" onclick="refreshSecurityData()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Stats -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Requests</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-requests">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-globe fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Blocked Requests</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="blocked-requests">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-shield-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Rate Limited</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="rate-limited">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Whitelisted IPs</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="whitelist-count">-</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <ul class="nav nav-tabs card-header-tabs" id="securityTabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#ip-whitelist">IP Whitelist</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#rate-limits">Rate Limits</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#recent-blocks">Recent Blocks</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#cors-settings">CORS Settings</a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- IP Whitelist Tab -->
+                <div class="tab-pane fade show active" id="ip-whitelist">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Allowed IP Addresses</h5>
+                        <button class="btn btn-success btn-sm" onclick="addNewIP()">
+                            <i class="fas fa-plus"></i> Add IP
+                        </button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>IP Addresses/CIDR (one per line):</label>
+                        <textarea id="ip-whitelist-text" class="form-control" rows="10" placeholder="127.0.0.1&#10;192.168.0.0/16&#10;10.0.0.0/8"></textarea>
+                        <small class="form-text text-muted">
+                            Supports single IPs (192.168.1.1) and CIDR notation (192.168.0.0/16)
+                        </small>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="updateIPWhitelist()">
+                        <i class="fas fa-save"></i> Save Whitelist
+                    </button>
+                </div>
+
+                <!-- Rate Limits Tab -->
+                <div class="tab-pane fade" id="rate-limits">
+                    <h5>Rate Limiting Configuration</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Requests per Minute:</label>
+                                <input type="number" id="requests-per-minute" class="form-control" min="1" max="1000">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Requests per Hour:</label>
+                                <input type="number" id="requests-per-hour" class="form-control" min="60" max="10000">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Sensitive Endpoints per Minute:</label>
+                                <input type="number" id="sensitive-per-minute" class="form-control" min="1" max="100">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="updateRateLimits()">
+                        <i class="fas fa-save"></i> Save Rate Limits
+                    </button>
+                </div>
+
+                <!-- Recent Blocks Tab -->
+                <div class="tab-pane fade" id="recent-blocks">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Recent Blocked Requests</h5>
+                        <div>
+                            <input type="text" id="block-ip-input" class="form-control d-inline-block" style="width: 200px;" placeholder="IP to block">
+                            <button class="btn btn-danger btn-sm ml-2" onclick="blockIPTemporarily()">
+                                <i class="fas fa-ban"></i> Block IP
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="recent-blocks-table">
+                            <thead>
+                                <tr>
+                                    <th>IP Address</th>
+                                    <th>Reason</th>
+                                    <th>Path</th>
+                                    <th>Timestamp</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data will be loaded via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- CORS Settings Tab -->
+                <div class="tab-pane fade" id="cors-settings">
+                    <h5>CORS Configuration</h5>
+                    
+                    <div class="form-group">
+                        <label>Allowed Origins:</label>
+                        <textarea id="cors-origins" class="form-control" rows="5" readonly></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Allowed Methods:</label>
+                                <input type="text" id="cors-methods" class="form-control" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Allow Credentials:</label>
+                                <input type="text" id="cors-credentials" class="form-control" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let securityData = {};
+
+// Load security data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadSecurityData();
+});
+
+async function loadSecurityData() {
+    try {
+        showLoading();
+        
+        // Load all security data in parallel
+        const [statsResponse, whitelistResponse, rateLimitsResponse, corsResponse] = await Promise.all([
+            auth.fetch('/api/admin/security/stats'),
+            auth.fetch('/api/admin/security/ip-whitelist'),
+            auth.fetch('/api/admin/security/rate-limits'),
+            auth.fetch('/api/admin/security/cors-settings')
+        ]);
+
+        if (statsResponse && statsResponse.ok) {
+            const stats = await statsResponse.json();
+            updateStatsDisplay(stats.stats);
+        }
+
+        if (whitelistResponse && whitelistResponse.ok) {
+            const whitelist = await whitelistResponse.json();
+            updateWhitelistDisplay(whitelist.whitelist);
+            document.getElementById('whitelist-count').textContent = whitelist.count;
+        }
+
+        if (rateLimitsResponse && rateLimitsResponse.ok) {
+            const rateLimits = await rateLimitsResponse.json();
+            updateRateLimitsDisplay(rateLimits.rate_limits);
+        }
+
+        if (corsResponse && corsResponse.ok) {
+            const cors = await corsResponse.json();
+            updateCorsDisplay(cors.cors_settings);
+        }
+
+    } catch (error) {
+        console.error('Failed to load security data:', error);
+        showToast('Failed to load security data', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function updateStatsDisplay(stats) {
+    document.getElementById('total-requests').textContent = stats.total_requests.toLocaleString();
+    document.getElementById('blocked-requests').textContent = stats.blocked_requests.toLocaleString();
+    document.getElementById('rate-limited').textContent = stats.rate_limited_requests.toLocaleString();
+    
+    // Update recent blocks table
+    const tbody = document.querySelector('#recent-blocks-table tbody');
+    tbody.innerHTML = '';
+    
+    stats.recent_blocks.forEach(block => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${block.ip}</td>
+            <td><span class="badge badge-danger">${block.reason}</span></td>
+            <td><code>${block.path}</code></td>
+            <td>${new Date(block.timestamp).toLocaleString()}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-success" onclick="unblockIP('${block.ip}')">
+                    <i class="fas fa-unlock"></i> Unblock
+                </button>
+            </td>
+        `;
+    });
+}
+
+function updateWhitelistDisplay(whitelist) {
+    document.getElementById('ip-whitelist-text').value = whitelist.join('\n');
+}
+
+function updateRateLimitsDisplay(rateLimits) {
+    document.getElementById('requests-per-minute').value = rateLimits.requests_per_minute;
+    document.getElementById('requests-per-hour').value = rateLimits.requests_per_hour;
+    document.getElementById('sensitive-per-minute').value = rateLimits.sensitive_endpoints_per_minute;
+}
+
+function updateCorsDisplay(corsSettings) {
+    document.getElementById('cors-origins').value = corsSettings.allowed_origins.join('\n');
+    document.getElementById('cors-methods').value = corsSettings.allowed_methods.join(', ');
+    document.getElementById('cors-credentials').value = corsSettings.allow_credentials ? 'Yes' : 'No';
+}
+
+async function updateIPWhitelist() {
+    try {
+        showLoading();
+        
+        const ipsText = document.getElementById('ip-whitelist-text').value;
+        const ips = ipsText.split('\n')
+            .map(ip => ip.trim())
+            .filter(ip => ip && !ip.startsWith('#'));
+
+        const response = await auth.fetch('/api/admin/security/ip-whitelist', {
+            method: 'POST',
+            body: JSON.stringify({ ips })
+        });
+
+        if (response && response.ok) {
+            showToast('IP whitelist updated successfully', 'success');
+            document.getElementById('whitelist-count').textContent = ips.length;
+        } else {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to update IP whitelist', 'danger');
+        }
+    } catch (error) {
+        console.error('Failed to update IP whitelist:', error);
+        showToast('Network error occurred', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function updateRateLimits() {
+    try {
+        showLoading();
+        
+        const limits = {
+            requests_per_minute: parseInt(document.getElementById('requests-per-minute').value),
+            requests_per_hour: parseInt(document.getElementById('requests-per-hour').value),
+            sensitive_endpoints_per_minute: parseInt(document.getElementById('sensitive-per-minute').value)
+        };
+
+        const response = await auth.fetch('/api/admin/security/rate-limits', {
+            method: 'POST',
+            body: JSON.stringify(limits)
+        });
+
+        if (response && response.ok) {
+            showToast('Rate limits updated successfully', 'success');
+        } else {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to update rate limits', 'danger');
+        }
+    } catch (error) {
+        console.error('Failed to update rate limits:', error);
+        showToast('Network error occurred', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function blockIPTemporarily() {
+    const ip = document.getElementById('block-ip-input').value.trim();
+    if (!ip) {
+        showToast('Please enter an IP address', 'warning');
+        return;
+    }
+
+    try {
+        showLoading();
+        
+        const response = await auth.fetch('/api/admin/security/block-ip', {
+            method: 'POST',
+            body: JSON.stringify({ ip, duration_minutes: 60 })
+        });
+
+        if (response && response.ok) {
+            showToast(`IP ${ip} blocked for 60 minutes`, 'success');
+            document.getElementById('block-ip-input').value = '';
+            loadSecurityData(); // Refresh data
+        } else {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to block IP', 'danger');
+        }
+    } catch (error) {
+        console.error('Failed to block IP:', error);
+        showToast('Network error occurred', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function unblockIP(ip) {
+    try {
+        showLoading();
+        
+        const response = await auth.fetch(`/api/admin/security/unblock-ip/${ip}`, {
+            method: 'DELETE'
+        });
+
+        if (response && response.ok) {
+            showToast(`IP ${ip} unblocked successfully`, 'success');
+            loadSecurityData(); // Refresh data
+        } else {
+            const error = await response.json();
+            showToast(error.detail || 'Failed to unblock IP', 'danger');
+        }
+    } catch (error) {
+        console.error('Failed to unblock IP:', error);
+        showToast('Network error occurred', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+function addNewIP() {
+    const currentIPs = document.getElementById('ip-whitelist-text').value;
+    const newIP = prompt('Enter IP address or CIDR:');
+    
+    if (newIP) {
+        document.getElementById('ip-whitelist-text').value = currentIPs + '\n' + newIP;
+    }
+}
+
+function refreshSecurityData() {
+    loadSecurityData();
+}
+</script>
+{% endblock %}

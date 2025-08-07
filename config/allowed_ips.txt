@@ -1,0 +1,15 @@
+# IP Whitelist - One IP/CIDR per line
+# Lines starting with # are comments
+
+# Local machine
+127.0.0.1
+::1
+
+# Local network ranges
+192.168.0.0/16
+10.0.0.0/8
+172.16.0.0/12
+
+# Add specific trusted IPs here
+# 203.162.4.100
+# 116.97.246.0/24
