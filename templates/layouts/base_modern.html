@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Vision Platform{% endblock %}</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollToPlugin.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0a0a0a;
+            --bg-dark: #111111;
+            --surface: #1a1a1a;
+            --border: #333333;
+            --text: #ffffff;
+            --text-secondary: #aaaaaa;
+            --accent: #88ce02;
+            --accent-secondary: #ff6b6b;
+            --white: #ffffff;
+            --gray-100: #f8fafc;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            --purple: #8b5cf6;
+            --blue: #3b82f6;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--primary);
+            color: var(--white);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        .cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            mix-blend-mode: difference;
+            transition: transform 0.1s ease;
+        }
+
+        .cursor-follower {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            transition: all 0.3s ease;
+        }
+
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: var(--primary);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .loader-text {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 2rem;
+        }
+
+        .loader-bar {
+            width: 300px;
+            height: 4px;
+            background: var(--gray-800);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .loader-progress {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--purple));
+            width: 0%;
+            border-radius: 2px;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 2rem 5%;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        nav.scrolled {
+            padding: 1rem 5%;
+            background: rgba(10, 10, 10, 0.9);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            position: relative;
+        }
+
+        .nav-links a {
+            color: var(--white);
+            text-decoration: none;
+            font-weight: 500;
+            position: relative;
+            transition: color 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        /* Dropdown Menu Styles */
+        .nav-item {
+            position: relative;
+        }
+
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            min-width: 250px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        .nav-item:hover .dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-item {
+            display: block;
+            padding: 1rem 1.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(136, 206, 2, 0.1);
+            color: var(--accent);
+            transform: translateX(5px);
+        }
+
+        .dropdown-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: var(--accent);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .dropdown-item:hover::before {
+            transform: scaleY(1);
+        }
+
+        .dropdown-icon {
+            font-size: 1.1rem;
+            margin-right: 0.75rem;
+            color: var(--accent);
+            width: 20px;
+            text-align: center;
+        }
+
+        .dropdown-title {
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 0.25rem;
+        }
+
+        .dropdown-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Multi-level dropdown */
+        .dropdown-submenu {
+            position: relative;
+        }
+
+        .dropdown-submenu .dropdown {
+            top: 0;
+            left: 100%;
+            margin-left: 5px;
+        }
+
+        .dropdown-submenu:hover > .dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        /* Dropdown arrow indicator */
+        .dropdown-toggle::after {
+            content: '⌄';
+            margin-left: 0.5rem;
+            transition: transform 0.3s ease;
+            font-size: 0.8rem;
+        }
+
+        .nav-item:hover .dropdown-toggle::after {
+            transform: rotate(180deg);
+        }
+
+        .dropdown-submenu > a::after {
+            content: '→';
+            margin-left: auto;
+            font-size: 0.8rem;
+        }
+
+        /* Mobile responsive dropdown */
+        @media (max-width: 768px) {
+            .nav-links {
+                position: fixed;
+                top: 100%;
+                left: 0;
+                width: 100%;
+                background: rgba(26, 26, 26, 0.98);
+                backdrop-filter: blur(20px);
+                flex-direction: column;
+                gap: 0;
+                transform: translateY(-100vh);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                max-height: calc(100vh - 80px);
+                overflow-y: auto;
+                border-top: 1px solid var(--border);
+            }
+
+            .nav-links.active {
+                transform: translateY(0);
+            }
+
+            .nav-item {
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .dropdown {
+                position: static;
+                opacity: 1;
+                visibility: visible;
+                transform: none;
+                box-shadow: none;
+                border: none;
+                background: rgba(17, 17, 17, 0.8);
+                min-width: auto;
+                display: none;
+            }
+            
+            .dropdown-item {
+                padding: 1rem 2rem;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            }
+
+            .dropdown-submenu .dropdown {
+                background: rgba(10, 10, 10, 0.9);
+            }
+
+            .dropdown-submenu .dropdown-item {
+                padding-left: 3rem;
+            }
+        }
+
+        /* Mobile Menu Button */
+        .mobile-menu-btn {
+            display: none;
+            flex-direction: column;
+            justify-content: space-around;
+            width: 30px;
+            height: 30px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 1001;
+        }
+
+        .mobile-menu-btn span {
+            display: block;
+            height: 3px;
+            width: 100%;
+            background: var(--white);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            transform-origin: center;
+        }
+
+        .mobile-menu-btn.active span:nth-child(1) {
+            transform: rotate(45deg) translate(7px, 7px);
+        }
+
+        .mobile-menu-btn.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .mobile-menu-btn.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: flex;
+            }
+
+            .cursor, .cursor-follower {
+                display: none;
+            }
+        }
+
+        /* Button styles */
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            background: none;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--primary);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--white);
+            border-color: var(--white);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(136, 206, 2, 0.3);
+        }
+
+        /* Content styles */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(135deg, var(--white) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Footer */
+        footer {
+            padding: 3rem 5%;
+            border-top: 1px solid var(--gray-700);
+            text-align: center;
+            color: var(--gray-400);
+            margin-top: 5rem;
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeInFallback 1s ease-out;
+        }
+
+        .slide-in-left {
+            animation: slideInLeftFallback 1s ease-out;
+        }
+
+        .slide-in-right {
+            animation: slideInRightFallback 1s ease-out;
+        }
+
+        .scale-in {
+            animation: scaleInFallback 1s ease-out;
+        }
+
+        /* Fallback animations */
+        @keyframes fadeInFallback {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInLeftFallback {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInRightFallback {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes scaleInFallback {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .cursor, .cursor-follower {
+                display: none;
+            }
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <!-- Cursor -->
+    <div class="cursor"></div>
+    <div class="cursor-follower"></div>
+
+    <!-- Loader -->
+    <div class="loader">
+        <div class="loader-text">{% block loader_text %}AI Vision Platform{% endblock %}</div>
+        <div class="loader-bar">
+            <div class="loader-progress"></div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <i class="fas fa-eye"></i> {% block logo_text %}AI Vision{% endblock %}
+            </a>
+            
+            <!-- Mobile Menu Button -->
+            <button class="mobile-menu-btn" aria-label="Toggle mobile menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            
+            <ul class="nav-links">
+                {% block nav_links %}
+                <li class="nav-item">
+                    <a href="/">Features</a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="dropdown-toggle">OCR Services</a>
+                    <div class="dropdown">
+                        <a href="/demo" class="dropdown-item">
+                            <i class="fas fa-id-card dropdown-icon"></i>
+                            <div>
+                                <div class="dropdown-title">Citizens Card Detection</div>
+                                <div class="dropdown-desc">Detect and extract Vietnamese ID card information</div>
+                            </div>
+                        </a>
+                        <a href="/demo" class="dropdown-item">
+                            <i class="fas fa-text-width dropdown-icon"></i>
+                            <div>
+                                <div class="dropdown-title">Optical Character Recognition</div>
+                                <div class="dropdown-desc">Advanced text recognition from images</div>
+                            </div>
+                        </a>
+                        <a href="/demo-new" class="dropdown-item">
+                            <i class="fas fa-camera dropdown-icon"></i>
+                            <div>
+                                <div class="dropdown-title">Demo Playground</div>
+                                <div class="dropdown-desc">Interactive demo with sample images</div>
+                            </div>
+                        </a>
+                        <div class="dropdown-submenu">
+                            <a href="#" class="dropdown-item">
+                                <i class="fas fa-cogs dropdown-icon"></i>
+                                <div>
+                                    <div class="dropdown-title">Advanced Features</div>
+                                    <div class="dropdown-desc">Specialized OCR capabilities</div>
+                                </div>
+                            </a>
+                            <div class="dropdown">
+                                <a href="#" class="dropdown-item">
+                                    <i class="fas fa-language dropdown-icon"></i>
+                                    <div>
+                                        <div class="dropdown-title">Multi-language Support</div>
+                                        <div class="dropdown-desc">Vietnamese & English text recognition</div>
+                                    </div>
+                                </a>
+                                <a href="#" class="dropdown-item">
+                                    <i class="fas fa-magic dropdown-icon"></i>
+                                    <div>
+                                        <div class="dropdown-title">AI Enhancement</div>
+                                        <div class="dropdown-desc">Smart image preprocessing</div>
+                                    </div>
+                                </a>
+                                <a href="#" class="dropdown-item">
+                                    <i class="fas fa-batch dropdown-icon"></i>
+                                    <div>
+                                        <div class="dropdown-title">Batch Processing</div>
+                                        <div class="dropdown-desc">Process multiple images at once</div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="dropdown-toggle">API Documentation</a>
+                    <div class="dropdown">
+                        <a href="/docs-modern" class="dropdown-item">
+                            <i class="fas fa-book dropdown-icon"></i>
+                            <div>
+                                <div class="dropdown-title">Modern API Docs</div>
+                                <div class="dropdown-desc">Interactive API documentation</div>
+                            </div>
+                        </a>
+                        <a href="/redoc" target="_blank" class="dropdown-item">
+                            <i class="fas fa-file-code dropdown-icon"></i>
+                            <div>
+                                <div class="dropdown-title">Redoc</div>
+                                <div class="dropdown-desc">Documentation</div>
+                            </div>
+                        </a>
+                        <a href="/docs" target="_blank" class="dropdown-item">
+                            <i class="fas fa-file-code dropdown-icon"></i>
+                            <div>
+                                <div class="dropdown-title">OpenAPI Spec</div>
+                                <div class="dropdown-desc">Standard Swagger documentation</div>
+                            </div>
+                        </a>
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-code dropdown-icon"></i>
+                            <div>
+                                <div class="dropdown-title">Code Examples</div>
+                                <div class="dropdown-desc">Ready-to-use code snippets</div>
+                            </div>
+                        </a>
+                    </div>
+                </li>
+                
+                  <li class="nav-item">
+                    <a href="#" class="dropdown-toggle">Smart Form</a>
+                    <div class="dropdown">
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-book dropdown-icon"></i>
+                            <div>
+                                <div class="dropdown-title">Demo 1</div>
+                                <div class="dropdown-desc"> Input Form Lable</div>
+                            </div>
+                        </a>
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-book dropdown-icon"></i>
+                            <div>
+                                <div class="dropdown-title">Demo 2</div>
+                                <div class="dropdown-desc">Input Form Lable</div>
+                            </div>
+                        </a>
+                    </div>
+                </li>
+                {% endblock %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        {% block footer %}
+        <p>&copy; 2024 AI Vision Platform. Built with ❤️ for developers.</p>
+        {% endblock %}
+    </footer>
+
+    <script>
+        // Preloader
+        window.addEventListener('load', () => {
+            const loader = document.querySelector('.loader');
+            const progress = document.querySelector('.loader-progress');
+            
+            let width = 0;
+            const interval = setInterval(() => {
+                width += Math.random() * 30;
+                if (width >= 100) {
+                    width = 100;
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        gsap.to(loader, {
+                            opacity: 0,
+                            duration: 0.5,
+                            onComplete: () => {
+                                loader.style.display = 'none';
+                                initAnimations();
+                            }
+                        });
+                    }, 500);
+                }
+                progress.style.width = width + '%';
+            }, 100);
+        });
+
+        // Custom Cursor
+        const cursor = document.querySelector('.cursor');
+        const cursorFollower = document.querySelector('.cursor-follower');
+
+        document.addEventListener('mousemove', (e) => {
+            gsap.to(cursor, {
+                x: e.clientX,
+                y: e.clientY,
+                duration: 0.1
+            });
+            
+            gsap.to(cursorFollower, {
+                x: e.clientX,
+                y: e.clientY,
+                duration: 0.3
+            });
+        });
+
+        // Hover effects for cursor
+        document.querySelectorAll('a, button').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                gsap.to(cursor, { scale: 1.5, duration: 0.2 });
+                gsap.to(cursorFollower, { scale: 1.5, duration: 0.2 });
+            });
+            
+            el.addEventListener('mouseleave', () => {
+                gsap.to(cursor, { scale: 1, duration: 0.2 });
+                gsap.to(cursorFollower, { scale: 1, duration: 0.2 });
+            });
+        });
+
+        // Initialize animations
+        function initAnimations() {
+            gsap.registerPlugin(ScrollTrigger);
+
+            // Navbar background on scroll
+            ScrollTrigger.create({
+                start: 'top -80',
+                end: 99999,
+                toggleClass: { className: 'scrolled', targets: 'nav' }
+            });
+
+            {% block animations %}{% endblock %}
+        }
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"], a[href^="/#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const href = this.getAttribute('href');
+                const targetId = href.includes('#') ? href.split('#')[1] : null;
+                
+                if (targetId) {
+                    const target = document.getElementById(targetId);
+                    if (target) {
+                        gsap.to(window, {
+                            duration: 1,
+                            scrollTo: target,
+                            ease: "power2.inOut"
+                        });
+                    }
+                }
+            });
+        });
+
+        // Dropdown menu functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mobile menu toggle
+            const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+            const navLinks = document.querySelector('.nav-links');
+
+            if (mobileMenuBtn && navLinks) {
+                mobileMenuBtn.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    navLinks.classList.toggle('active');
+                    
+                    // Prevent body scroll when menu is open
+                    document.body.style.overflow = navLinks.classList.contains('active') ? 'hidden' : '';
+                });
+            }
+
+            // Handle dropdown toggle clicks
+            const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
+            dropdownToggles.forEach(toggle => {
+                toggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // On mobile, toggle dropdown visibility
+                    if (window.innerWidth <= 768) {
+                        const dropdown = this.nextElementSibling;
+                        const isVisible = dropdown.style.display === 'block';
+                        
+                        // Close all other dropdowns
+                        document.querySelectorAll('.dropdown').forEach(d => {
+                            d.style.display = 'none';
+                        });
+                        
+                        // Toggle current dropdown
+                        dropdown.style.display = isVisible ? 'none' : 'block';
+                        
+                        // Animate dropdown
+                        if (!isVisible) {
+                            gsap.fromTo(dropdown, 
+                                { opacity: 0, y: -10 },
+                                { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }
+                            );
+                        }
+                    }
+                });
+            });
+
+            // Close mobile menu when clicking on links
+            document.querySelectorAll('.nav-links a').forEach(link => {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) {
+                        navLinks.classList.remove('active');
+                        mobileMenuBtn.classList.remove('active');
+                        document.body.style.overflow = '';
+                    }
+                });
+            });
+
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.nav-item') && !e.target.closest('.mobile-menu-btn')) {
+                    // Close mobile menu
+                    if (window.innerWidth <= 768) {
+                        navLinks.classList.remove('active');
+                        mobileMenuBtn.classList.remove('active');
+                        document.body.style.overflow = '';
+                    }
+                    
+                    // Close dropdowns
+                    document.querySelectorAll('.dropdown').forEach(dropdown => {
+                        if (window.innerWidth <= 768) {
+                            dropdown.style.display = 'none';
+                        }
+                    });
+                }
+            });
+
+            // Handle keyboard navigation
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    // Close mobile menu
+                    navLinks.classList.remove('active');
+                    mobileMenuBtn.classList.remove('active');
+                    document.body.style.overflow = '';
+                    
+                    // Close dropdowns
+                    document.querySelectorAll('.dropdown').forEach(dropdown => {
+                        dropdown.style.display = 'none';
+                    });
+                }
+            });
+
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    navLinks.classList.remove('active');
+                    mobileMenuBtn.classList.remove('active');
+                    document.body.style.overflow = '';
+                    
+                    // Reset dropdown display
+                    document.querySelectorAll('.dropdown').forEach(dropdown => {
+                        dropdown.style.display = '';
+                    });
+                }
+            });
+
+            // Smooth hover animations for dropdown items
+            const dropdownItems = document.querySelectorAll('.dropdown-item');
+            dropdownItems.forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    if (window.innerWidth > 768) {
+                        gsap.to(this, {
+                            x: 5,
+                            duration: 0.2,
+                            ease: "power2.out"
+                        });
+                    }
+                });
+
+                item.addEventListener('mouseleave', function() {
+                    if (window.innerWidth > 768) {
+                        gsap.to(this, {
+                            x: 0,
+                            duration: 0.2,
+                            ease: "power2.out"
+                        });
+                    }
+                });
+            });
+        });
+
+        {% block extra_js %}{% endblock %}
+    </script>
+</body>
+</html>

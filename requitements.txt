@@ -27,3 +27,4 @@ sepay
 # Utility
 python-dotenv
 easyocr
+vietocr

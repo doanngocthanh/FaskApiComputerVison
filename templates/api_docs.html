@@ -1,0 +1,661 @@
+{% extends "layouts/base_modern.html" %}
+
+{% block title %}API Documentation - AI Vision Platform{% endblock %}
+
+{% block extra_css %}
+/* API Docs specific styles */
+.api-hero {
+    height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, var(--bg-dark) 0%, var(--surface) 100%);
+}
+
+.api-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.api-content {
+    text-align: center;
+    max-width: 800px;
+    padding: 0 2rem;
+    z-index: 2;
+}
+
+.api-title {
+    font-size: clamp(3rem, 8vw, 5rem);
+    font-weight: 900;
+    line-height: 0.9;
+    margin-bottom: 2rem;
+    background: linear-gradient(135deg, var(--white) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.api-subtitle {
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    color: var(--gray-300);
+    margin-bottom: 3rem;
+    font-weight: 300;
+}
+
+.api-endpoints {
+    padding: 5rem 0;
+    background: var(--gray-900);
+}
+
+.endpoint-card {
+    background: var(--surface);
+    border-radius: 15px;
+    padding: 2rem;
+    border: 1px solid var(--border);
+    margin-bottom: 2rem;
+    transition: all 0.3s ease;
+}
+
+.endpoint-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent);
+    box-shadow: 0 10px 30px rgba(136, 206, 2, 0.2);
+}
+
+.endpoint-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.endpoint-method {
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+}
+
+.method-post {
+    background: #f59e0b;
+    color: var(--primary);
+}
+
+.method-get {
+    background: #10b981;
+    color: var(--primary);
+}
+
+.endpoint-path {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.endpoint-description {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.params-section {
+    margin-bottom: 2rem;
+}
+
+.params-title {
+    color: var(--white);
+    font-weight: 600;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.param-item {
+    background: var(--gray-800);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-left: 4px solid var(--accent);
+}
+
+.param-name {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.param-type {
+    display: inline-block;
+    background: var(--gray-700);
+    color: var(--white);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+}
+
+.param-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.example-section {
+    background: var(--gray-800);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.example-title {
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.code-block {
+    background: var(--primary);
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+}
+
+.json-key {
+    color: #7dd3fc;
+}
+
+.json-string {
+    color: #fbbf24;
+}
+
+.json-number {
+    color: #34d399;
+}
+
+.json-boolean {
+    color: #f472b6;
+}
+
+.response-codes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.response-code {
+    background: var(--gray-800);
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    border-left: 4px solid;
+}
+
+.code-200 {
+    border-left-color: #10b981;
+}
+
+.code-400 {
+    border-left-color: #f59e0b;
+}
+
+.code-500 {
+    border-left-color: #ef4444;
+}
+
+.response-code-num {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.response-code-desc {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.try-it-btn {
+    background: var(--accent);
+    color: var(--primary);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+}
+
+.try-it-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(136, 206, 2, 0.3);
+}
+
+.quick-start {
+    background: var(--surface);
+    padding: 3rem 2rem;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    margin-bottom: 3rem;
+}
+
+.quick-start h3 {
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+.step-list {
+    list-style: none;
+    counter-reset: step-counter;
+}
+
+.step-list li {
+    counter-increment: step-counter;
+    margin-bottom: 1rem;
+    position: relative;
+    padding-left: 3rem;
+}
+
+.step-list li::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 0;
+    top: 0;
+    background: var(--accent);
+    color: var(--primary);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.api-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    margin: 3rem 0;
+}
+
+.api-stat {
+    text-align: center;
+    padding: 2rem;
+    background: var(--surface);
+    border-radius: 15px;
+    border: 1px solid var(--border);
+}
+
+.api-stat-number {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.api-stat-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="api-hero" id="hero">
+    <div class="api-content">
+        <h1 class="api-title fade-in">API Documentation</h1>
+        <p class="api-subtitle fade-in">Complete guide to integrate our OCR API into your applications</p>
+        
+        <div class="cta-buttons fade-in">
+            <a href="#endpoints" class="btn btn-primary">
+                <i class="fas fa-book"></i>
+                View Endpoints
+            </a>
+            <a href="#quickstart" class="btn btn-secondary">
+                <i class="fas fa-rocket"></i>
+                Quick Start
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Quick Start Section -->
+<section class="api-endpoints" id="quickstart">
+    <div class="container">
+        <h2 class="section-title fade-in">Quick Start Guide</h2>
+        
+        <div class="quick-start fade-in">
+            <h3><i class="fas fa-rocket"></i> Get Started in 3 Steps</h3>
+            <ol class="step-list">
+                <li>
+                    <strong>Choose your endpoint:</strong> Select from our available OCR endpoints based on your needs
+                </li>
+                <li>
+                    <strong>Prepare your image:</strong> Convert your image to base64 format or send as multipart form data
+                </li>
+                <li>
+                    <strong>Make the API call:</strong> Send POST request with your image and language parameter
+                </li>
+            </ol>
+        </div>
+
+        <div class="api-stats fade-in">
+            <div class="api-stat">
+                <span class="api-stat-number">3</span>
+                <div class="api-stat-label">Available Endpoints</div>
+            </div>
+            <div class="api-stat">
+                <span class="api-stat-number">99.9%</span>
+                <div class="api-stat-label">Uptime</div>
+            </div>
+            <div class="api-stat">
+                <span class="api-stat-number">< 100ms</span>
+                <div class="api-stat-label">Response Time</div>
+            </div>
+            <div class="api-stat">
+                <span class="api-stat-number">24/7</span>
+                <div class="api-stat-label">Support</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- API Endpoints Section -->
+<section class="api-endpoints" id="endpoints">
+    <div class="container">
+        <h2 class="section-title fade-in">API Endpoints</h2>
+        
+        <!-- OCR Endpoint -->
+        <div class="endpoint-card scale-in">
+            <div class="endpoint-header">
+                <div>
+                    <span class="endpoint-method method-post">POST</span>
+                    <span class="endpoint-path">/api/v1/vietnam-citizens-card-ocr</span>
+                </div>
+                <button class="try-it-btn" onclick="tryEndpoint('ocr')">
+                    <i class="fas fa-play"></i> Try It
+                </button>
+            </div>
+            
+            <div class="endpoint-description">
+                Extract text from Vietnamese citizen ID cards with high accuracy. Supports both Vietnamese and English text recognition.
+            </div>
+            
+            <div class="params-section">
+                <div class="params-title"><i class="fas fa-cog"></i> Request Parameters</div>
+                <div class="param-item">
+                    <div class="param-name">image <span class="param-type">string</span></div>
+                    <div class="param-description">Base64 encoded image data (required)</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-name">lang <span class="param-type">string</span></div>
+                    <div class="param-description">Language code: "vi" for Vietnamese, "en" for English (default: "vi")</div>
+                </div>
+            </div>
+            
+            <div class="example-section">
+                <div class="example-title"><i class="fas fa-code"></i> Request Example</div>
+                <div class="code-block">
+<span class="json-key">{</span>
+  <span class="json-key">"image"</span>: <span class="json-string">"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."</span>,
+  <span class="json-key">"lang"</span>: <span class="json-string">"vi"</span>
+<span class="json-key">}</span>
+                </div>
+            </div>
+            
+            <div class="example-section">
+                <div class="example-title"><i class="fas fa-check"></i> Success Response (200)</div>
+                <div class="code-block">
+<span class="json-key">{</span>
+  <span class="json-key">"success"</span>: <span class="json-boolean">true</span>,
+  <span class="json-key">"data"</span>: <span class="json-key">{</span>
+    <span class="json-key">"name"</span>: <span class="json-string">"NGUYỄN VĂN MINH"</span>,
+    <span class="json-key">"id"</span>: <span class="json-string">"001234567890"</span>,
+    <span class="json-key">"birth"</span>: <span class="json-string">"15/08/1990"</span>,
+    <span class="json-key">"address"</span>: <span class="json-string">"Hà Nội, Việt Nam"</span>
+  <span class="json-key">}</span>,
+  <span class="json-key">"processing_time"</span>: <span class="json-number">0.045</span>
+<span class="json-key">}</span>
+                </div>
+            </div>
+            
+            <div class="response-codes">
+                <div class="response-code code-200">
+                    <div class="response-code-num">200</div>
+                    <div class="response-code-desc">Success</div>
+                </div>
+                <div class="response-code code-400">
+                    <div class="response-code-num">400</div>
+                    <div class="response-code-desc">Bad Request</div>
+                </div>
+                <div class="response-code code-500">
+                    <div class="response-code-num">500</div>
+                    <div class="response-code-desc">Server Error</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MRZ Extraction Endpoint -->
+        <div class="endpoint-card scale-in">
+            <div class="endpoint-header">
+                <div>
+                    <span class="endpoint-method method-post">POST</span>
+                    <span class="endpoint-path">/api/v1/vietnam-citizens-card-mrz-extraction</span>
+                </div>
+                <button class="try-it-btn" onclick="tryEndpoint('mrz')">
+                    <i class="fas fa-play"></i> Try It
+                </button>
+            </div>
+            
+            <div class="endpoint-description">
+                Extract and parse Machine Readable Zone (MRZ) data from Vietnamese ID cards.
+            </div>
+            
+            <div class="params-section">
+                <div class="params-title"><i class="fas fa-cog"></i> Request Parameters</div>
+                <div class="param-item">
+                    <div class="param-name">image <span class="param-type">string</span></div>
+                    <div class="param-description">Base64 encoded image data (required)</div>
+                </div>
+            </div>
+            
+            <div class="example-section">
+                <div class="example-title"><i class="fas fa-check"></i> Success Response</div>
+                <div class="code-block">
+<span class="json-key">{</span>
+  <span class="json-key">"success"</span>: <span class="json-boolean">true</span>,
+  <span class="json-key">"mrz_data"</span>: <span class="json-key">{</span>
+    <span class="json-key">"document_type"</span>: <span class="json-string">"ID"</span>,
+    <span class="json-key">"country_code"</span>: <span class="json-string">"VNM"</span>,
+    <span class="json-key">"document_number"</span>: <span class="json-string">"001234567890"</span>
+  <span class="json-key">}</span>
+<span class="json-key">}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detection Endpoint -->
+        <div class="endpoint-card scale-in">
+            <div class="endpoint-header">
+                <div>
+                    <span class="endpoint-method method-post">POST</span>
+                    <span class="endpoint-path">/api/v1/vietnam-citizens-card-detection</span>
+                </div>
+                <button class="try-it-btn" onclick="tryEndpoint('detection')">
+                    <i class="fas fa-play"></i> Try It
+                </button>
+            </div>
+            
+            <div class="endpoint-description">
+                Detect and locate Vietnamese citizen ID cards in images with bounding box coordinates.
+            </div>
+            
+            <div class="params-section">
+                <div class="params-title"><i class="fas fa-cog"></i> Request Parameters</div>
+                <div class="param-item">
+                    <div class="param-name">image <span class="param-type">string</span></div>
+                    <div class="param-description">Base64 encoded image data (required)</div>
+                </div>
+            </div>
+            
+            <div class="example-section">
+                <div class="example-title"><i class="fas fa-check"></i> Success Response</div>
+                <div class="code-block">
+<span class="json-key">{</span>
+  <span class="json-key">"success"</span>: <span class="json-boolean">true</span>,
+  <span class="json-key">"detections"</span>: <span class="json-key">[</span>
+    <span class="json-key">{</span>
+      <span class="json-key">"confidence"</span>: <span class="json-number">0.98</span>,
+      <span class="json-key">"bbox"</span>: <span class="json-key">[</span><span class="json-number">120</span>, <span class="json-number">50</span>, <span class="json-number">480</span>, <span class="json-number">300</span><span class="json-key">]</span>
+    <span class="json-key">}</span>
+  <span class="json-key">]</span>
+<span class="json-key">}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block animations %}
+// Hero animations
+const heroElements = document.querySelectorAll('.api-hero .fade-in');
+gsap.from(heroElements, {
+    opacity: 0,
+    y: 50,
+    duration: 1,
+    stagger: 0.2,
+    ease: "power3.out"
+});
+
+// Section title animations
+gsap.from('.section-title', {
+    scrollTrigger: {
+        trigger: '.section-title',
+        start: 'top 80%'
+    },
+    opacity: 0,
+    y: 50,
+    duration: 1,
+    ease: "power3.out"
+});
+
+// Endpoint cards animation
+gsap.from('.endpoint-card', {
+    scrollTrigger: {
+        trigger: '.api-endpoints',
+        start: 'top 80%'
+    },
+    opacity: 0,
+    y: 50,
+    duration: 1,
+    stagger: 0.2,
+    ease: "power3.out"
+});
+
+// Quick start section
+gsap.from('.quick-start', {
+    scrollTrigger: {
+        trigger: '.quick-start',
+        start: 'top 80%'
+    },
+    opacity: 0,
+    y: 30,
+    duration: 0.8,
+    ease: "power3.out"
+});
+
+// API stats animation
+gsap.from('.api-stat', {
+    scrollTrigger: {
+        trigger: '.api-stats',
+        start: 'top 80%'
+    },
+    opacity: 0,
+    y: 30,
+    duration: 0.8,
+    stagger: 0.1,
+    ease: "power3.out"
+});
+{% endblock %}
+
+{% block extra_js %}
+// Try endpoint functionality
+function tryEndpoint(type) {
+    let endpoint = '';
+    switch(type) {
+        case 'ocr':
+            endpoint = '/api/v1/vietnam-citizens-card-ocr';
+            break;
+        case 'mrz':
+            endpoint = '/api/v1/vietnam-citizens-card-mrz-extraction';
+            break;
+        case 'detection':
+            endpoint = '/api/v1/vietnam-citizens-card-detection';
+            break;
+    }
+    
+    // Store endpoint info and redirect to demo
+    sessionStorage.setItem('selectedEndpoint', endpoint);
+    sessionStorage.setItem('endpointType', type);
+    window.location.href = '/demo';
+}
+
+// Load OpenAPI specification
+async function loadOpenApiSpec() {
+    try {
+        const response = await fetch('/openapi.json');
+        const spec = await response.json();
+        
+        // You can use this to dynamically generate documentation
+        console.log('OpenAPI Spec loaded:', spec);
+        
+        // Optionally update the documentation based on the spec
+        updateDocumentationFromSpec(spec);
+    } catch (error) {
+        console.error('Failed to load OpenAPI spec:', error);
+    }
+}
+
+function updateDocumentationFromSpec(spec) {
+    // Update API title and description
+    if (spec.info) {
+        const titleElement = document.querySelector('.api-title');
+        const subtitleElement = document.querySelector('.api-subtitle');
+        
+        if (titleElement && spec.info.title) {
+            titleElement.textContent = spec.info.title;
+        }
+        
+        if (subtitleElement && spec.info.description) {
+            subtitleElement.textContent = spec.info.description;
+        }
+    }
+    
+    // You can extend this to dynamically generate endpoint documentation
+}
+
+// Load the spec when page loads
+document.addEventListener('DOMContentLoaded', loadOpenApiSpec);
+{% endblock %}

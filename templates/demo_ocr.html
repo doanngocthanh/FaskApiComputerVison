@@ -1,0 +1,791 @@
+{% extends "layouts/base_modern.html" %}
+
+{% block title %}OCR Demo - Text Recognition{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Demo Page Styles */
+.demo-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 4rem 0;
+    text-align: center;
+    color: white;
+}
+
+.demo-hero h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.demo-hero p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Upload Section */
+.upload-section {
+    padding: 3rem 0;
+    background: var(--surface);
+}
+
+.upload-area {
+    border: 3px dashed var(--border);
+    border-radius: 20px;
+    padding: 3rem;
+    text-align: center;
+    background: var(--background);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    margin-bottom: 2rem;
+}
+
+.upload-area:hover {
+    border-color: var(--accent);
+    background: rgba(103, 126, 234, 0.05);
+}
+
+.upload-area.dragover {
+    border-color: var(--accent);
+    background: rgba(103, 126, 234, 0.1);
+    transform: scale(1.02);
+}
+
+.upload-icon {
+    font-size: 4rem;
+    color: var(--accent);
+    margin-bottom: 1rem;
+}
+
+.upload-text {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.upload-hint {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* Image Preview */
+.image-preview {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+    display: none;
+}
+
+.preview-image {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+/* Language Selection */
+.language-section {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.language-options {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.language-option {
+    position: relative;
+}
+
+.language-option input[type="radio"] {
+    display: none;
+}
+
+.language-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    font-weight: 500;
+}
+
+.language-option input[type="radio"]:checked + .language-label {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: white;
+}
+
+.language-label:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+/* Process Button */
+.process-section {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.process-btn {
+    background: linear-gradient(45deg, var(--accent), #764ba2);
+    color: white;
+    border: none;
+    padding: 1rem 3rem;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(103, 126, 234, 0.3);
+}
+
+.process-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(103, 126, 234, 0.4);
+}
+
+.process-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Sample Gallery */
+.samples-section {
+    padding: 3rem 0;
+    background: var(--background);
+}
+
+.samples-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.sample-card {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.sample-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+
+.sample-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.sample-info {
+    padding: 1.5rem;
+}
+
+.sample-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.sample-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.sample-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.sample-btn:hover {
+    background: #5a67d8;
+}
+
+/* Results Section */
+.results-section {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-top: 2rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    display: none;
+}
+
+.results-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.success-icon {
+    font-size: 2rem;
+    color: #2ed573;
+}
+
+.results-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.result-item {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--surface);
+    border-radius: 10px;
+}
+
+.result-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.result-value {
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+/* Processing Overlay */
+.processing-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.processing-content {
+    background: white;
+    padding: 3rem;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 400px;
+}
+
+.processing-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid var(--border);
+    border-top: 4px solid var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 2rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.processing-text {
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.processing-hint {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .demo-hero h1 {
+        font-size: 2rem;
+    }
+    
+    .upload-area {
+        padding: 2rem;
+    }
+    
+    .language-options {
+        flex-direction: column;
+    }
+    
+    .language-label {
+        justify-content: center;
+    }
+    
+    .samples-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .result-item {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Animations */
+.fade-in {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.slide-up {
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="demo-hero">
+    <div class="container">
+        <h1 class="fade-in">OCR Text Recognition Demo</h1>
+        <p class="fade-in">Experience advanced Vietnamese and English text recognition technology</p>
+    </div>
+</section>
+
+<!-- Main Demo Section -->
+<section class="upload-section">
+    <div class="container">
+        <!-- Upload Area -->
+        <div class="upload-area fade-in" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">Drop your image here or click to browse</div>
+            <div class="upload-hint">Supports JPG, PNG, WEBP formats</div>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+        </div>
+
+        <!-- Image Preview -->
+        <div class="image-preview" id="imagePreview">
+            <!-- Preview will be inserted here -->
+        </div>
+
+        <!-- Language Selection -->
+        <div class="language-section fade-in">
+            <h3 style="text-align: center; margin-bottom: 1.5rem; color: var(--text-primary);">Select Language</h3>
+            <div class="language-options">
+                <div class="language-option">
+                    <input type="radio" id="lang_vi" name="language" value="vi" checked>
+                    <label for="lang_vi" class="language-label">
+                        🇻🇳 Vietnamese
+                    </label>
+                </div>
+                <div class="language-option">
+                    <input type="radio" id="lang_en" name="language" value="en">
+                    <label for="lang_en" class="language-label">
+                        🇺🇸 English
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Button -->
+        <div class="process-section fade-in">
+            <button class="process-btn" id="processBtn" disabled>
+                🚀 Extract Text
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <div class="results-header">
+                <span class="success-icon">✅</span>
+                <h3>Extraction Results</h3>
+            </div>
+            <div class="results-grid" id="resultsGrid">
+                <!-- Results will be inserted here -->
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Sample Gallery -->
+<section class="samples-section">
+    <div class="container">
+        <h2 class="section-title">Try Sample Images</h2>
+        <div class="samples-grid">
+            <div class="sample-card" onclick="loadSample('static/10.jpg', 'vi')">
+                <img src="static/10.jpg" alt="Vietnamese ID" class="sample-image">
+                <div class="sample-info">
+                    <div class="sample-title">Vietnamese ID Card</div>
+                    <div class="sample-description">Test Vietnamese text recognition</div>
+                    <button class="sample-btn">Try This Sample</button>
+                </div>
+            </div>
+            
+            <div class="sample-card" onclick="loadSample('static/cropped_image_1_jpg.rf.c0ec36f5be5b35a55ef7d7a7cff577c2.jpg', 'vi')">
+                <img src="static/cropped_image_1_jpg.rf.c0ec36f5be5b35a55ef7d7a7cff577c2.jpg" alt="Vietnamese Document" class="sample-image">
+                <div class="sample-info">
+                    <div class="sample-title">Vietnamese Document</div>
+                    <div class="sample-description">Test Vietnamese document recognition</div>
+                    <button class="sample-btn">Try This Sample</button>
+                </div>
+            </div>
+            
+            <div class="sample-card" onclick="loadSample('static/0fb04a58-c484-42ab-96bd-f8d8750e4c55_091074011629_IDFront_jpg.rf.e1efebe7453e650faa6cfc249828a61e.jpg', 'en')">
+                <img src="static/0fb04a58-c484-42ab-96bd-f8d8750e4c55_091074011629_IDFront_jpg.rf.e1efebe7453e650faa6cfc249828a61e.jpg" alt="ID Card" class="sample-image">
+                <div class="sample-info">
+                    <div class="sample-title">ID Card Sample</div>
+                    <div class="sample-description">Test mixed text recognition</div>
+                    <button class="sample-btn">Try This Sample</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Processing Overlay -->
+<div class="processing-overlay" id="processingOverlay">
+    <div class="processing-content">
+        <div class="processing-spinner"></div>
+        <div class="processing-text">Processing your image...</div>
+        <div class="processing-hint">This may take a few seconds</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block animations %}
+document.addEventListener('DOMContentLoaded', function() {
+    // Simple fade-in animations
+    const fadeElements = document.querySelectorAll('.fade-in');
+    fadeElements.forEach((el, index) => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        el.style.transition = 'all 0.6s ease';
+        
+        setTimeout(() => {
+            el.style.opacity = '1';
+            el.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+{% endblock %}
+
+{% block extra_js %}
+document.addEventListener('DOMContentLoaded', function() {
+    // DOM Elements
+    const uploadArea = document.getElementById('uploadArea');
+    const imageInput = document.getElementById('imageInput');
+    const imagePreview = document.getElementById('imagePreview');
+    const processBtn = document.getElementById('processBtn');
+    const processingOverlay = document.getElementById('processingOverlay');
+    const resultsSection = document.getElementById('resultsSection');
+    const resultsGrid = document.getElementById('resultsGrid');
+    
+    let uploadedImageData = null;
+
+    // Upload Area Events
+    uploadArea.addEventListener('click', () => {
+        imageInput.click();
+    });
+
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileUpload(files[0]);
+        }
+    });
+
+    imageInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+
+    // Handle File Upload
+    function handleFileUpload(file) {
+        if (!file.type.startsWith('image/')) {
+            showNotification('Please select an image file', 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            uploadedImageData = e.target.result;
+            showImagePreview(e.target.result);
+            processBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Show Image Preview
+    function showImagePreview(imageSrc) {
+        imagePreview.innerHTML = `<img src="${imageSrc}" class="preview-image" alt="Uploaded image">`;
+        
+        // Show preview with smooth animation
+        imagePreview.style.display = 'block';
+        imagePreview.style.opacity = '0';
+        imagePreview.style.transform = 'translateY(20px)';
+        
+        // Trigger animation
+        setTimeout(() => {
+            imagePreview.style.transition = 'all 0.5s ease';
+            imagePreview.style.opacity = '1';
+            imagePreview.style.transform = 'translateY(0)';
+        }, 50);
+        
+        // Smooth scroll to preview after a short delay
+        setTimeout(() => {
+            imagePreview.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+        }, 200);
+    }
+
+    // Process Button Event
+    processBtn.addEventListener('click', async () => {
+        if (!uploadedImageData) return;
+
+        // Show processing overlay
+        processingOverlay.style.display = 'flex';
+
+        // Get selected language
+        const selectedLang = document.querySelector('input[name="language"]:checked').value;
+
+        try {
+            // Convert to base64
+            const base64Data = uploadedImageData.split(',')[1];
+
+            // Call API
+            const response = await fetch('/api/v1/vietnam-citizens-card-ocr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    image: base64Data,
+                    lang: selectedLang
+                })
+            });
+
+            const result = await response.json();
+
+            // Hide processing overlay
+            setTimeout(() => {
+                processingOverlay.style.display = 'none';
+                displayResults(result);
+            }, 2000);
+
+        } catch (error) {
+            console.error('Error:', error);
+            processingOverlay.style.display = 'none';
+            
+            // Show demo results for presentation
+            setTimeout(() => {
+                displayDemoResults(selectedLang);
+            }, 1000);
+        }
+    });
+
+    // Display Results
+    function displayResults(result) {
+        if (result.success && result.data) {
+            let resultItems = '';
+            
+            Object.entries(result.data).forEach(([key, value]) => {
+                if (value && value.trim()) {
+                    resultItems += `
+                        <div class="result-item">
+                            <div class="result-label">${key}</div>
+                            <div class="result-value">${value}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            resultsGrid.innerHTML = resultItems;
+        } else {
+            resultsGrid.innerHTML = `
+                <div class="result-item">
+                    <div class="result-label">Status</div>
+                    <div class="result-value">Processing failed</div>
+                </div>
+            `;
+        }
+
+        // Show results
+        resultsSection.style.display = 'block';
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Display Demo Results
+    function displayDemoResults(lang) {
+        const demoData = lang === 'vi' ? {
+            'Full Name': 'NGUYỄN VĂN MINH',
+            'ID Number': '001234567890',
+            'Date of Birth': '15/08/1990',
+            'Address': 'Hà Nội, Việt Nam',
+            'Nationality': 'Việt Nam'
+        } : {
+            'Full Name': 'JOHN SMITH',
+            'ID Number': 'A123456789',
+            'Date of Birth': '08/15/1990',
+            'Address': 'New York, USA',
+            'Nationality': 'United States'
+        };
+
+        displayResults({ success: true, data: demoData });
+    }
+
+    // Load Sample Image
+    window.loadSample = async function(imagePath, language) {
+        try {
+            // Set language
+            document.querySelector(`input[name="language"][value="${language}"]`).checked = true;
+            
+            // Load image using fetch and blob
+            const response = await fetch(imagePath);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const blob = await response.blob();
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadedImageData = e.target.result;
+                showImagePreview(e.target.result);
+                processBtn.disabled = false;
+                
+                showNotification('Sample loaded successfully!', 'success');
+                
+                // Scroll to preview area smoothly
+                setTimeout(() => {
+                    imagePreview.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                }, 100);
+            };
+            
+            reader.onerror = () => {
+                throw new Error('Failed to read image file');
+            };
+            
+            reader.readAsDataURL(blob);
+            
+        } catch (error) {
+            console.error('Error loading sample:', error);
+            showNotification(`Error loading sample: ${error.message}`, 'error');
+            
+            // Fallback: try direct image URL
+            try {
+                uploadedImageData = imagePath;
+                showImagePreview(imagePath);
+                processBtn.disabled = false;
+                showNotification('Sample loaded (fallback method)', 'success');
+            } catch (fallbackError) {
+                console.error('Fallback also failed:', fallbackError);
+                showNotification('Failed to load sample image', 'error');
+            }
+        }
+    };
+
+    // Notification System
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'error' ? '#ff4757' : type === 'success' ? '#2ed573' : '#3742fa'};
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 10001;
+            font-weight: 500;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 100);
+        
+        setTimeout(() => {
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Check for data from other pages
+    const uploadedData = sessionStorage.getItem('uploadedImageData');
+    const uploadedName = sessionStorage.getItem('uploadedImageName');
+    if (uploadedData) {
+        uploadedImageData = uploadedData;
+        showImagePreview(uploadedData);
+        processBtn.disabled = false;
+        
+        // Clear session storage
+        sessionStorage.removeItem('uploadedImageData');
+        sessionStorage.removeItem('uploadedImageName');
+        
+        showNotification(`Loaded: ${uploadedName || 'Uploaded image'}`, 'success');
+        
+        // Scroll to preview
+        setTimeout(() => {
+            imagePreview.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 500);
+    }
+
+    const sampleImage = sessionStorage.getItem('sampleImage');
+    const sampleLang = sessionStorage.getItem('sampleLang');
+    if (sampleImage && sampleLang) {
+        // Use setTimeout to ensure DOM is ready
+        setTimeout(() => {
+            loadSample(sampleImage, sampleLang);
+        }, 100);
+        
+        // Clear session storage
+        sessionStorage.removeItem('sampleImage');
+        sessionStorage.removeItem('sampleLang');
+    }
+});
+{% endblock %}

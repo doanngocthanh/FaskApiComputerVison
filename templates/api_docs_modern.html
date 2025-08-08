@@ -1,0 +1,1675 @@
+{% extends "layouts/base_modern.html" %}
+
+{% block title %}API Documentation - AI Vision Platform{% endblock %}
+
+{% block extra_css %}
+/* Advanced Visual Effects */
+.particle-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 50%;
+    opacity: 0.6;
+}
+
+.floating-code {
+    position: absolute;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    opacity: 0.1;
+    font-size: 0.8rem;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Enhanced API Docs Hero Section */
+.api-hero {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--gray-900) 50%, #1a1a2e 100%);
+}
+
+.api-hero-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 20% 20%, var(--accent) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, var(--purple) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, var(--blue) 0%, transparent 70%);
+    opacity: 0.15;
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    33% { transform: translateY(-20px) rotate(1deg); }
+    66% { transform: translateY(-10px) rotate(-1deg); }
+}
+
+.api-hero-content {
+    text-align: center;
+    max-width: 900px;
+    padding: 0 2rem;
+    z-index: 2;
+    position: relative;
+}
+
+.api-hero-title {
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 2rem;
+    background: linear-gradient(135deg, var(--white) 0%, var(--accent) 50%, var(--purple) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+}
+
+.api-hero-title::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    z-index: -1;
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); opacity: 0; }
+    50% { opacity: 0.1; }
+    100% { transform: translateX(100%); opacity: 0; }
+}
+
+.api-hero-subtitle {
+    font-size: clamp(1.2rem, 3vw, 2rem);
+    color: var(--gray-300);
+    margin-bottom: 3rem;
+    font-weight: 300;
+    line-height: 1.6;
+}
+
+.cta-buttons {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+}
+
+.hero-btn {
+    position: relative;
+    padding: 1.5rem 3rem;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.hero-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.hero-btn:hover::before {
+    left: 100%;
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, var(--accent), #a855f7);
+    color: var(--white);
+    box-shadow: 0 10px 30px rgba(136, 206, 2, 0.3);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--white);
+    border-color: var(--accent);
+    backdrop-filter: blur(10px);
+}
+
+.hero-btn:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 20px 50px rgba(136, 206, 2, 0.4);
+}
+
+/* Interactive Code Display */
+.code-display {
+    position: absolute;
+    top: 20%;
+    right: 5%;
+    background: rgba(26, 26, 26, 0.9);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transform: translateX(100px);
+    z-index: 3;
+}
+
+.code-display pre {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Loading Animation Enhancement */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: var(--gray-400);
+    position: relative;
+}
+
+.loading-spinner {
+    width: 80px;
+    height: 80px;
+    border: 4px solid var(--gray-700);
+    border-top: 4px solid var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.loading-spinner::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--purple);
+    border-top: 3px solid transparent;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: spin 2s linear infinite reverse;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    background: linear-gradient(90deg, var(--accent), var(--purple), var(--accent));
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-shift 2s ease-in-out infinite;
+}
+
+@keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* Enhanced API Overview */
+.api-overview {
+    padding: 8rem 5% 5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.api-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin: 4rem 0;
+}
+
+.api-info-card {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    border: 1px solid var(--border);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.api-info-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(136, 206, 2, 0.1), transparent);
+    transition: left 0.6s ease;
+}
+
+.api-info-card:hover::before {
+    left: 100%;
+}
+
+.api-info-card:hover {
+    transform: translateY(-10px) rotateY(5deg);
+    border-color: var(--accent);
+    box-shadow: 0 25px 50px rgba(136, 206, 2, 0.2);
+}
+
+.api-info-icon {
+    font-size: 3.5rem;
+    color: var(--accent);
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.api-info-card:hover .api-info-icon {
+    transform: scale(1.2) rotate(10deg);
+    color: var(--purple);
+}
+
+.api-info-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--white);
+    transition: color 0.3s ease;
+}
+
+.api-info-card:hover .api-info-title {
+    color: var(--accent);
+}
+
+.api-info-value {
+    font-size: 1.2rem;
+    color: var(--gray-300);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+}
+
+/* Enhanced Endpoints Section */
+.endpoints-section {
+    padding: 5rem 5%;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.endpoint-card {
+    background: var(--surface);
+    border-radius: 25px;
+    border: 1px solid var(--border);
+    margin-bottom: 3rem;
+    overflow: hidden;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.endpoint-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--purple), var(--blue));
+    transform: scaleX(0);
+    transition: transform 0.5s ease;
+    transform-origin: left;
+}
+
+.endpoint-card:hover::before {
+    transform: scaleX(1);
+}
+
+.endpoint-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 20px 40px rgba(136, 206, 2, 0.15);
+    transform: translateY(-5px);
+}
+
+.endpoint-header {
+    padding: 2.5rem;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.endpoint-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(136, 206, 2, 0.05));
+    transition: width 0.5s ease;
+}
+
+.endpoint-header:hover::before {
+    width: 100%;
+}
+
+.endpoint-summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.method-badge {
+    padding: 0.75rem 1.5rem;
+    border-radius: 30px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.method-badge:hover {
+    transform: scale(1.1);
+}
+
+.method-get { 
+    background: linear-gradient(45deg, var(--accent), #a7f3d0); 
+    color: var(--primary); 
+}
+.method-post { 
+    background: linear-gradient(45deg, #fbbf24, #fcd34d); 
+    color: var(--primary); 
+}
+.method-put { 
+    background: linear-gradient(45deg, #3b82f6, #60a5fa); 
+    color: var(--white); 
+}
+.method-delete { 
+    background: linear-gradient(45deg, #ef4444, #f87171); 
+    color: var(--white); 
+}
+
+.endpoint-path {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--white);
+    font-weight: 600;
+}
+
+.endpoint-description {
+    color: var(--gray-300);
+    margin-bottom: 1rem;
+}
+
+.expand-icon {
+    margin-left: auto;
+    color: var(--accent);
+    transition: transform 0.3s ease;
+}
+
+.endpoint-header.expanded .expand-icon {
+    transform: rotate(180deg);
+}
+
+.endpoint-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.endpoint-details.expanded {
+    max-height: 1000px;
+}
+
+.endpoint-content {
+    padding: 0 2rem 2rem;
+}
+
+/* Parameters Section */
+.parameters-section {
+    margin: 2rem 0;
+}
+
+.parameters-title {
+    color: var(--accent);
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.parameter-item {
+    background: var(--gray-800);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--accent);
+}
+
+.parameter-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.parameter-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--white);
+}
+
+.parameter-type {
+    background: var(--gray-700);
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    color: var(--gray-300);
+}
+
+.parameter-required {
+    background: #ef4444;
+    color: var(--white);
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.parameter-description {
+    color: var(--gray-300);
+    margin-top: 0.5rem;
+}
+
+/* Advanced Code Examples */
+.code-example {
+    background: var(--gray-900);
+    border-radius: 15px;
+    padding: 2rem;
+    margin: 2rem 0;
+    border: 1px solid var(--gray-700);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.code-example::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--purple), var(--blue), var(--accent));
+    background-size: 200% 100%;
+    animation: gradient-flow 3s linear infinite;
+}
+
+@keyframes gradient-flow {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+
+.code-example:hover {
+    transform: scale(1.02);
+    box-shadow: 0 15px 30px rgba(136, 206, 2, 0.1);
+}
+
+.code-example pre {
+    margin: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--gray-200);
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--gray-700);
+}
+
+.code-title {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.copy-btn {
+    background: linear-gradient(45deg, var(--gray-700), var(--gray-600));
+    border: none;
+    color: var(--gray-300);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.copy-btn:hover {
+    background: linear-gradient(45deg, var(--accent), var(--purple));
+    color: var(--white);
+    transform: scale(1.1);
+}
+
+/* Scroll Progress Indicator */
+.scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--purple), var(--blue));
+    z-index: 9999;
+    transition: width 0.1s ease;
+}
+
+/* Floating Action Buttons */
+.floating-actions {
+    position: fixed;
+    right: 2rem;
+    bottom: 2rem;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.fab {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, var(--accent), var(--purple));
+    color: var(--white);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(136, 206, 2, 0.3);
+}
+
+.fab:hover {
+    transform: scale(1.1) rotate(10deg);
+    box-shadow: 0 15px 40px rgba(136, 206, 2, 0.5);
+}
+
+/* Quick Start Section */
+.quick-start {
+    padding: 3rem 5%;
+    background: var(--gray-900);
+    border-top: 1px solid var(--gray-700);
+}
+
+.quick-start-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.quick-start-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.quick-start-card {
+    background: var(--surface);
+    border-radius: 15px;
+    padding: 2rem;
+    border: 1px solid var(--border);
+}
+
+.quick-start-number {
+    width: 40px;
+    height: 40px;
+    background: var(--accent);
+    color: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    margin-bottom: 1rem;
+}
+
+.quick-start-title {
+    color: var(--white);
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.quick-start-description {
+    color: var(--gray-300);
+    margin-bottom: 1rem;
+}
+
+/* Responsive Enhancements */
+@media (max-width: 768px) {
+    .api-hero {
+        height: 80vh;
+        padding: 2rem 1rem;
+    }
+    
+    .code-display {
+        display: none;
+    }
+    
+    .cta-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .floating-actions {
+        right: 1rem;
+        bottom: 1rem;
+    }
+    
+    .fab {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+    
+    .endpoint-summary {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+{% endblock %}
+
+{% block content %}
+<!-- Scroll Progress Indicator -->
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<!-- Floating Particles Background -->
+<div class="particle-bg" id="particleBg"></div>
+
+<!-- API Hero Section -->
+<section class="api-hero">
+    <div class="api-hero-bg"></div>
+    
+    <!-- Floating Code Snippets -->
+    <div class="floating-code" style="top: 10%; left: 10%;">{"api": "endpoint"}</div>
+    <div class="floating-code" style="top: 20%; right: 15%;">GET /api/v1</div>
+    <div class="floating-code" style="bottom: 30%; left: 5%;">response.json()</div>
+    <div class="floating-code" style="bottom: 15%; right: 20%;">status: 200</div>
+    
+    <div class="api-hero-content">
+        <h1 class="api-hero-title magic-title">API Documentation</h1>
+        <p class="api-hero-subtitle magic-subtitle">Complete reference for our Computer Vision API</p>
+        <div class="cta-buttons">
+            <a href="#endpoints" class="hero-btn btn-primary magic-btn">
+                <i class="fas fa-book"></i>
+                <span>Explore Endpoints</span>
+            </a>
+            <a href="#quick-start" class="hero-btn btn-secondary magic-btn">
+                <i class="fas fa-rocket"></i>
+                <span>Quick Start</span>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Interactive Code Display -->
+    <div class="code-display magic-code">
+        <pre><code>fetch('/api/v1/detect', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    image: 'base64_string',
+    model: 'yolo'
+  })
+}).then(response => response.json())</code></pre>
+    </div>
+</section>
+
+<!-- API Overview -->
+<section class="api-overview">
+    <h2 class="section-title magic-section-title">API Overview</h2>
+    
+    <!-- Enhanced Loading State -->
+    <div id="loadingContainer" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Loading API documentation...</p>
+    </div>
+    
+    <!-- API Info Grid -->
+    <div id="apiInfoGrid" class="api-info-grid magic-grid" style="display: none;">
+        <div class="api-info-card magic-card" data-tilt>
+            <div class="api-info-icon">
+                <i class="fas fa-server"></i>
+            </div>
+            <h3 class="api-info-title">Base URL</h3>
+            <p class="api-info-value" id="baseUrl">Loading...</p>
+        </div>
+        
+        <div class="api-info-card magic-card" data-tilt>
+            <div class="api-info-icon">
+                <i class="fas fa-code"></i>
+            </div>
+            <h3 class="api-info-title">Version</h3>
+            <p class="api-info-value" id="apiVersion">Loading...</p>
+        </div>
+        
+        <div class="api-info-card magic-card" data-tilt>
+            <div class="api-info-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h3 class="api-info-title">Authentication</h3>
+            <p class="api-info-value" id="authType">Loading...</p>
+        </div>
+        
+        <div class="api-info-card magic-card" data-tilt>
+            <div class="api-info-icon">
+                <i class="fas fa-file-code"></i>
+            </div>
+            <h3 class="api-info-title">Format</h3>
+            <p class="api-info-value">JSON</p>
+        </div>
+    </div>
+</section>
+
+<!-- Endpoints Section -->
+<section class="endpoints-section" id="endpoints">
+    <h2 class="section-title magic-section-title">API Endpoints</h2>
+    <div id="endpointsContainer" class="magic-endpoints">
+        <!-- Endpoints will be loaded here -->
+    </div>
+</section>
+
+<!-- Quick Start Guide -->
+<section class="quick-start" id="quick-start">
+    <div class="quick-start-content">
+        <h2 class="section-title magic-section-title">Quick Start Guide</h2>
+        
+        <div class="quick-start-grid magic-quick-start">
+            <div class="quick-start-card magic-card">
+                <div class="quick-start-number">1</div>
+                <h3 class="quick-start-title">Get Your API Key</h3>
+                <p class="quick-start-description">Sign up for an account and obtain your API key from the dashboard.</p>
+                <div class="code-example">
+                    <pre><code># Add your API key to headers
+Authorization: Bearer YOUR_API_KEY</code></pre>
+                </div>
+            </div>
+            
+            <div class="quick-start-card magic-card">
+                <div class="quick-start-number">2</div>
+                <h3 class="quick-start-title">Make Your First Request</h3>
+                <p class="quick-start-description">Start with a simple OCR request to test the API.</p>
+                <div class="code-example">
+                    <pre><code>curl -X POST "https://api.example.com/v1/ocr" \
+  -H "Content-Type: application/json" \
+  -d '{"image": "base64_string", "lang": "vi"}'</code></pre>
+                </div>
+            </div>
+            
+            <div class="quick-start-card magic-card">
+                <div class="quick-start-number">3</div>
+                <h3 class="quick-start-title">Handle Responses</h3>
+                <p class="quick-start-description">Process the JSON response and extract the data you need.</p>
+                <div class="code-example">
+                    <pre><code>{
+  "success": true,
+  "data": {
+    "text": "Extracted text content",
+    "confidence": 0.95
+  }
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Floating Action Buttons -->
+<div class="floating-actions">
+    <button class="fab" onclick="scrollToTop()" title="Back to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+    <button class="fab" onclick="toggleTheme()" title="Toggle theme">
+        <i class="fas fa-palette"></i>
+    </button>
+</div>
+{% endblock %}
+
+{% block animations %}
+// Advanced GSAP Timeline Animations
+window.addEventListener('load', () => {
+    // Create main timeline
+    const mainTL = gsap.timeline();
+    
+    // Particle system
+    createParticleSystem();
+    
+    // Hero section spectacular entrance
+    mainTL.fromTo('.api-hero', 
+        { 
+            opacity: 0,
+            scale: 0.8,
+            rotationY: -15 
+        },
+        { 
+            opacity: 1,
+            scale: 1,
+            rotationY: 0,
+            duration: 1.5,
+            ease: "back.out(1.7)"
+        }
+    )
+    .fromTo('.magic-title', 
+        {
+            opacity: 0,
+            y: 100,
+            rotationX: 90,
+            transformOrigin: "50% 50% -100px"
+        },
+        {
+            opacity: 1,
+            y: 0,
+            rotationX: 0,
+            duration: 1.2,
+            ease: "power4.out"
+        }, "-=1"
+    )
+    .fromTo('.magic-subtitle', 
+        {
+            opacity: 0,
+            y: 50,
+            scale: 0.8
+        },
+        {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.8,
+            ease: "power3.out"
+        }, "-=0.8"
+    )
+    .fromTo('.magic-btn', 
+        {
+            opacity: 0,
+            y: 30,
+            rotationY: 45,
+            scale: 0.8
+        },
+        {
+            opacity: 1,
+            y: 0,
+            rotationY: 0,
+            scale: 1,
+            duration: 0.6,
+            stagger: 0.2,
+            ease: "back.out(1.7)"
+        }, "-=0.6"
+    )
+    .fromTo('.floating-code', 
+        {
+            opacity: 0,
+            scale: 0,
+            rotation: 180
+        },
+        {
+            opacity: 0.6,
+            scale: 1,
+            rotation: 0,
+            duration: 0.8,
+            stagger: 0.15,
+            ease: "elastic.out(1, 0.5)"
+        }, "-=0.4"
+    )
+    .fromTo('.magic-code', 
+        {
+            opacity: 0,
+            x: 200,
+            rotationY: 90
+        },
+        {
+            opacity: 1,
+            x: 0,
+            rotationY: 0,
+            duration: 1,
+            ease: "power3.out"
+        }, "-=0.8"
+    );
+
+    // Floating animations for floating elements
+    gsap.to('.floating-code', {
+        y: '+=20',
+        rotation: '+=5',
+        duration: 3,
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1,
+        stagger: 0.5
+    });
+
+    // Magic code typing effect
+    setTimeout(() => {
+        typeCodeEffect();
+    }, 2000);
+
+    // Scroll-triggered animations
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Section titles with 3D effect
+    gsap.utils.toArray('.magic-section-title').forEach(title => {
+        gsap.fromTo(title, 
+            {
+                opacity: 0,
+                y: 100,
+                rotationX: 90,
+                transformOrigin: "50% 50% -50px"
+            },
+            {
+                opacity: 1,
+                y: 0,
+                rotationX: 0,
+                duration: 1.2,
+                ease: "power4.out",
+                scrollTrigger: {
+                    trigger: title,
+                    start: "top 85%",
+                    toggleActions: "play none none none"
+                }
+            }
+        );
+    });
+
+    // API Info Cards with staggered 3D flip
+    gsap.fromTo('.magic-card', 
+        {
+            opacity: 0,
+            rotationY: 180,
+            z: -200,
+            transformOrigin: "center center"
+        },
+        {
+            opacity: 1,
+            rotationY: 0,
+            z: 0,
+            duration: 1,
+            stagger: {
+                amount: 1.5,
+                from: "random"
+            },
+            ease: "power3.out",
+            scrollTrigger: {
+                trigger: '.magic-grid',
+                start: "top 75%",
+                toggleActions: "play none none none"
+            }
+        }
+    );
+
+    // Endpoints with morphing effect
+    const endpointsObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                gsap.fromTo(entry.target.querySelectorAll('.endpoint-card'), 
+                    {
+                        opacity: 0,
+                        scale: 0.6,
+                        rotationX: 45,
+                        y: 100
+                    },
+                    {
+                        opacity: 1,
+                        scale: 1,
+                        rotationX: 0,
+                        y: 0,
+                        duration: 0.8,
+                        stagger: 0.2,
+                        ease: "back.out(1.7)"
+                    }
+                );
+            }
+        });
+    });
+
+    setTimeout(() => {
+        const endpointsContainer = document.querySelector('.magic-endpoints');
+        if (endpointsContainer) {
+            endpointsObserver.observe(endpointsContainer);
+        }
+    }, 1000);
+
+    // Quick start cards with chain reaction
+    gsap.fromTo('.magic-quick-start .magic-card', 
+        {
+            opacity: 0,
+            x: (i) => i % 2 === 0 ? -200 : 200,
+            rotationZ: (i) => i % 2 === 0 ? -45 : 45,
+            scale: 0.5
+        },
+        {
+            opacity: 1,
+            x: 0,
+            rotationZ: 0,
+            scale: 1,
+            duration: 1.2,
+            stagger: 0.3,
+            ease: "elastic.out(1, 0.5)",
+            scrollTrigger: {
+                trigger: '.magic-quick-start',
+                start: "top 75%",
+                toggleActions: "play none none none"
+            }
+        }
+    );
+
+    // Loading transition
+    setTimeout(() => {
+        const loadingContainer = document.getElementById('loadingContainer');
+        const apiGrid = document.getElementById('apiInfoGrid');
+        
+        if (loadingContainer && apiGrid) {
+            gsap.to(loadingContainer, {
+                opacity: 0,
+                scale: 0.8,
+                rotationZ: 360,
+                duration: 0.8,
+                ease: "power3.in",
+                onComplete: () => {
+                    loadingContainer.style.display = 'none';
+                    apiGrid.style.display = 'grid';
+                    
+                    gsap.fromTo(apiGrid, 
+                        {
+                            opacity: 0,
+                            scale: 0.8,
+                            rotationY: 180
+                        },
+                        {
+                            opacity: 1,
+                            scale: 1,
+                            rotationY: 0,
+                            duration: 1,
+                            ease: "back.out(1.7)"
+                        }
+                    );
+                }
+            });
+        }
+    }, 3000);
+
+    // Interactive hover effects
+    initializeInteractiveEffects();
+    
+    // Scroll progress indicator
+    updateScrollProgress();
+});
+
+// Particle system
+function createParticleSystem() {
+    const particleBg = document.getElementById('particleBg');
+    const particleCount = 50;
+    
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particleBg.appendChild(particle);
+        
+        gsap.to(particle, {
+            x: (Math.random() - 0.5) * 200,
+            y: (Math.random() - 0.5) * 200,
+            rotation: 360,
+            duration: Math.random() * 10 + 5,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut",
+            delay: Math.random() * 2
+        });
+        
+        gsap.to(particle, {
+            opacity: Math.random() * 0.8 + 0.2,
+            scale: Math.random() * 1.5 + 0.5,
+            duration: Math.random() * 3 + 1,
+            repeat: -1,
+            yoyo: true,
+            ease: "power2.inOut"
+        });
+    }
+}
+
+// Typing effect for code
+function typeCodeEffect() {
+    const codeDisplay = document.querySelector('.magic-code pre code');
+    if (!codeDisplay) return;
+    
+    const text = codeDisplay.textContent;
+    codeDisplay.textContent = '';
+    
+    gsap.to({}, {
+        duration: 3,
+        ease: "none",
+        onUpdate: function() {
+            const progress = this.progress();
+            const currentLength = Math.floor(progress * text.length);
+            codeDisplay.textContent = text.substring(0, currentLength);
+        }
+    });
+}
+
+// Interactive effects
+function initializeInteractiveEffects() {
+    // Card tilt effect
+    document.querySelectorAll('[data-tilt]').forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const rotateX = (y - centerY) / 10;
+            const rotateY = (centerX - x) / 10;
+            
+            gsap.to(card, {
+                rotationX: rotateX,
+                rotationY: rotateY,
+                transformPerspective: 1000,
+                duration: 0.3,
+                ease: "power2.out"
+            });
+        });
+        
+        card.addEventListener('mouseleave', () => {
+            gsap.to(card, {
+                rotationX: 0,
+                rotationY: 0,
+                duration: 0.5,
+                ease: "power2.out"
+            });
+        });
+    });
+
+    // Button magnetic effect
+    document.querySelectorAll('.magic-btn, .fab').forEach(btn => {
+        btn.addEventListener('mousemove', (e) => {
+            const rect = btn.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            
+            gsap.to(btn, {
+                x: x * 0.3,
+                y: y * 0.3,
+                duration: 0.3,
+                ease: "power2.out"
+            });
+        });
+        
+        btn.addEventListener('mouseleave', () => {
+            gsap.to(btn, {
+                x: 0,
+                y: 0,
+                duration: 0.5,
+                ease: "elastic.out(1, 0.3)"
+            });
+        });
+    });
+}
+
+// Scroll progress
+function updateScrollProgress() {
+    window.addEventListener('scroll', () => {
+        const scrollProgress = document.getElementById('scrollProgress');
+        const scrollTop = window.pageYOffset;
+        const docHeight = document.body.scrollHeight - window.innerHeight;
+        const scrollPercent = (scrollTop / docHeight) * 100;
+        
+        if (scrollProgress) {
+            scrollProgress.style.width = scrollPercent + '%';
+        }
+    });
+}
+
+// Utility functions
+function scrollToTop() {
+    gsap.to(window, {
+        scrollTo: { y: 0 },
+        duration: 1.5,
+        ease: "power3.out"
+    });
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('light-theme');
+    gsap.from('*', {
+        filter: 'hue-rotate(180deg)',
+        duration: 0.5,
+        ease: "power2.out"
+    });
+}
+
+// Ensure critical elements are visible immediately
+document.addEventListener('DOMContentLoaded', () => {
+    const criticalElements = [
+        '.api-hero-content',
+        '.loading-container'
+    ];
+    
+    criticalElements.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            el.style.opacity = '1';
+            el.style.visibility = 'visible';
+        });
+    });
+});
+{% endblock %}
+
+{% block extra_js %}
+// Load OpenAPI documentation
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Fetch OpenAPI spec
+        const response = await fetch('/openapi.json');
+        const openApiSpec = await response.json();
+        
+        // Hide loading, show content
+        document.getElementById('loadingContainer').style.display = 'none';
+        document.getElementById('apiInfoGrid').style.display = 'grid';
+        
+        // Populate API info
+        populateApiInfo(openApiSpec);
+        
+        // Generate endpoints documentation
+        generateEndpointsDoc(openApiSpec);
+        
+        // Initialize interactions
+        initializeInteractions();
+        
+    } catch (error) {
+        console.error('Error loading API documentation:', error);
+        document.getElementById('loadingContainer').innerHTML = `
+            <div class="loading-spinner" style="display: none;"></div>
+            <p style="color: #ef4444;">Failed to load API documentation. Please try again later.</p>
+        `;
+    }
+});
+
+function populateApiInfo(spec) {
+    // Base URL
+    const baseUrl = window.location.origin;
+    document.getElementById('baseUrl').textContent = baseUrl;
+    
+    // API Version
+    document.getElementById('apiVersion').textContent = spec.info?.version || '1.0.0';
+    
+    // Authentication
+    const hasAuth = spec.security && spec.security.length > 0;
+    document.getElementById('authType').textContent = hasAuth ? 'Bearer Token' : 'None';
+}
+
+function generateEndpointsDoc(spec) {
+    const container = document.getElementById('endpointsContainer');
+    const paths = spec.paths || {};
+    
+    Object.entries(paths).forEach(([path, methods]) => {
+        Object.entries(methods).forEach(([method, details]) => {
+            const endpointCard = createEndpointCard(path, method.toUpperCase(), details);
+            container.appendChild(endpointCard);
+        });
+    });
+}
+
+function createEndpointCard(path, method, details) {
+    const card = document.createElement('div');
+    card.className = 'endpoint-card';
+    
+    const methodClass = `method-${method.toLowerCase()}`;
+    
+    card.innerHTML = `
+        <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <div class="endpoint-summary">
+                <span class="method-badge ${methodClass}">${method}</span>
+                <span class="endpoint-path">${path}</span>
+            </div>
+            <p class="endpoint-description">${details.summary || details.description || 'No description available'}</p>
+            <i class="fas fa-chevron-down expand-icon"></i>
+        </div>
+        <div class="endpoint-details">
+            <div class="endpoint-content">
+                ${generateEndpointContent(path, method, details)}
+            </div>
+        </div>
+    `;
+    
+    return card;
+}
+
+function generateEndpointContent(path, method, details) {
+    let content = '';
+    
+    // Description
+    if (details.description && details.description !== details.summary) {
+        content += `<p style="color: var(--gray-300); margin-bottom: 2rem;">${details.description}</p>`;
+    }
+    
+    // Parameters
+    if (details.parameters && details.parameters.length > 0) {
+        content += generateParametersSection(details.parameters);
+    }
+    
+    // Request Body
+    if (details.requestBody) {
+        content += generateRequestBodySection(details.requestBody);
+    }
+    
+    // Responses
+    if (details.responses) {
+        content += generateResponsesSection(details.responses);
+    }
+    
+    // Code Examples
+    content += generateCodeExamples(path, method, details);
+    
+    return content;
+}
+
+function generateParametersSection(parameters) {
+    let html = `
+        <div class="parameters-section">
+            <h4 class="parameters-title">
+                <i class="fas fa-cog"></i>
+                Parameters
+            </h4>
+    `;
+    
+    parameters.forEach(param => {
+        const required = param.required ? '<span class="parameter-required">Required</span>' : '';
+        html += `
+            <div class="parameter-item">
+                <div class="parameter-header">
+                    <span class="parameter-name">${param.name}</span>
+                    <span class="parameter-type">${param.schema?.type || param.type || 'string'}</span>
+                    ${required}
+                </div>
+                <div class="parameter-description">${param.description || 'No description available'}</div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+function generateRequestBodySection(requestBody) {
+    const content = requestBody.content?.['application/json'];
+    if (!content) return '';
+    
+    return `
+        <div class="parameters-section">
+            <h4 class="parameters-title">
+                <i class="fas fa-upload"></i>
+                Request Body
+            </h4>
+            <div class="parameter-item">
+                <div class="parameter-description">${requestBody.description || 'Request body parameters'}</div>
+                ${content.schema ? generateSchemaExample(content.schema) : ''}
+            </div>
+        </div>
+    `;
+}
+
+function generateResponsesSection(responses) {
+    let html = `
+        <div class="response-section">
+            <h4 class="parameters-title">
+                <i class="fas fa-download"></i>
+                Responses
+            </h4>
+            <div class="response-tabs">
+    `;
+    
+    // Generate tabs
+    Object.keys(responses).forEach((code, index) => {
+        const active = index === 0 ? 'active' : '';
+        html += `<button class="response-tab ${active}" onclick="switchResponseTab(this)" data-code="${code}">${code}</button>`;
+    });
+    
+    html += '</div>';
+    
+    // Generate content
+    Object.entries(responses).forEach(([code, response], index) => {
+        const active = index === 0 ? 'active' : '';
+        html += `
+            <div class="response-content ${active}" data-code="${code}">
+                <div class="parameter-description">${response.description}</div>
+                ${response.content?.['application/json']?.schema ? generateSchemaExample(response.content['application/json'].schema) : ''}
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+function generateSchemaExample(schema) {
+    if (!schema) return '';
+    
+    let example = {};
+    if (schema.example) {
+        example = schema.example;
+    } else if (schema.properties) {
+        Object.entries(schema.properties).forEach(([key, prop]) => {
+            example[key] = prop.example || getDefaultValue(prop.type);
+        });
+    }
+    
+    return `
+        <div class="code-example">
+            <div class="code-header">
+                <span class="code-title">Example</span>
+                <button class="copy-btn" onclick="copyToClipboard(this)">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+            </div>
+            <pre><code>${JSON.stringify(example, null, 2)}</code></pre>
+        </div>
+    `;
+}
+
+function generateCodeExamples(path, method, details) {
+    const baseUrl = window.location.origin;
+    const curl = generateCurlExample(baseUrl + path, method, details);
+    const javascript = generateJavaScriptExample(baseUrl + path, method, details);
+    const python = generatePythonExample(baseUrl + path, method, details);
+    
+    return `
+        <div class="parameters-section">
+            <h4 class="parameters-title">
+                <i class="fas fa-code"></i>
+                Code Examples
+            </h4>
+            
+            <div class="code-example">
+                <div class="code-header">
+                    <span class="code-title">cURL</span>
+                    <button class="copy-btn" onclick="copyToClipboard(this)">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <pre><code>${curl}</code></pre>
+            </div>
+            
+            <div class="code-example">
+                <div class="code-header">
+                    <span class="code-title">JavaScript</span>
+                    <button class="copy-btn" onclick="copyToClipboard(this)">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <pre><code>${javascript}</code></pre>
+            </div>
+            
+            <div class="code-example">
+                <div class="code-header">
+                    <span class="code-title">Python</span>
+                    <button class="copy-btn" onclick="copyToClipboard(this)">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <pre><code>${python}</code></pre>
+            </div>
+        </div>
+    `;
+}
+
+// Helper functions
+function getDefaultValue(type) {
+    switch (type) {
+        case 'string': return 'string';
+        case 'number': return 0;
+        case 'integer': return 0;
+        case 'boolean': return true;
+        case 'array': return [];
+        case 'object': return {};
+        default: return null;
+    }
+}
+
+function generateCurlExample(url, method, details) {
+    let curl = `curl -X ${method} "${url}"`;
+    curl += ' \\\n  -H "Content-Type: application/json"';
+    
+    if (details.requestBody) {
+        curl += ' \\\n  -d \'{"key": "value"}\'';
+    }
+    
+    return curl;
+}
+
+function generateJavaScriptExample(url, method, details) {
+    let js = `const response = await fetch('${url}', {\n`;
+    js += `  method: '${method}',\n`;
+    js += `  headers: {\n`;
+    js += `    'Content-Type': 'application/json'\n`;
+    js += `  }`;
+    
+    if (details.requestBody) {
+        js += `,\n  body: JSON.stringify({\n    "key": "value"\n  })`;
+    }
+    
+    js += `\n});\n\nconst data = await response.json();\nconsole.log(data);`;
+    
+    return js;
+}
+
+function generatePythonExample(url, method, details) {
+    let python = `import requests\n\n`;
+    python += `url = "${url}"\n`;
+    python += `headers = {"Content-Type": "application/json"}\n`;
+    
+    if (details.requestBody) {
+        python += `data = {"key": "value"}\n\n`;
+        python += `response = requests.${method.toLowerCase()}(url, headers=headers, json=data)\n`;
+    } else {
+        python += `\nresponse = requests.${method.toLowerCase()}(url, headers=headers)\n`;
+    }
+    
+    python += `result = response.json()\nprint(result)`;
+    
+    return python;
+}
+
+// Interactive functions
+function toggleEndpoint(header) {
+    const details = header.nextElementSibling;
+    const isExpanded = header.classList.contains('expanded');
+    
+    if (isExpanded) {
+        header.classList.remove('expanded');
+        details.classList.remove('expanded');
+    } else {
+        header.classList.add('expanded');
+        details.classList.add('expanded');
+    }
+}
+
+function switchResponseTab(tab) {
+    const code = tab.dataset.code;
+    const container = tab.closest('.response-section');
+    
+    // Update tabs
+    container.querySelectorAll('.response-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    
+    // Update content
+    container.querySelectorAll('.response-content').forEach(c => c.classList.remove('active'));
+    container.querySelector(`[data-code="${code}"]`).classList.add('active');
+}
+
+function copyToClipboard(btn) {
+    const code = btn.closest('.code-example').querySelector('code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+        }, 2000);
+    });
+}
+
+// Initialize any additional interactions
+function initializeInteractions() {
+    // Add any additional interactive features here
+    console.log('API Documentation loaded successfully');
+}
+{% endblock %}

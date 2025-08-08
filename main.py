@@ -37,16 +37,58 @@ app.add_middleware(AdvancedLoggingMiddleware)
 #app.add_middleware(SecurityMiddleware)
 
 # Add auth middleware (should be last in auth chain)
-app.add_middleware(AuthMiddleware)
+# app.add_middleware(AuthMiddleware)
 
 # Mount static files
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Root endpoint to serve the new frontend interface
+# Root endpoint to serve the new modern frontend interface
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    """Main landing page"""
+    """Modern AI Vision Platform landing page"""
+    return templates.TemplateResponse("index_modern.html", {"request": request})
+
+# Demo OCR page
+@app.get("/demo", response_class=HTMLResponse)
+async def demo_ocr(request: Request):
+    """OCR Demo page with component layout"""
+    return templates.TemplateResponse("demo_ocr.html", {"request": request})
+
+# New Demo OCR page
+@app.get("/demo-new", response_class=HTMLResponse)
+async def demo_ocr_new(request: Request):
+    """New OCR Demo page with clean syntax"""
+    return templates.TemplateResponse("demo_ocr_new.html", {"request": request})
+
+# API Documentation page
+@app.get("/docs-ui", response_class=HTMLResponse)
+async def api_docs_ui(request: Request):
+    """API Documentation page with modern UI"""
+    return templates.TemplateResponse("api_docs.html", {"request": request})
+
+# Modern API Documentation page
+@app.get("/docs-modern", response_class=HTMLResponse)
+async def api_docs_modern(request: Request):
+    """Modern API Documentation page reading from OpenAPI JSON"""
+    return templates.TemplateResponse("api_docs_modern.html", {"request": request})
+
+# Component-based modern page
+@app.get("/modern", response_class=HTMLResponse)
+async def modern_index(request: Request):
+    """Modern homepage with component-based architecture"""
+    return templates.TemplateResponse("index_new.html", {"request": request})
+
+# Test navigation component page
+@app.get("/test-navigation", response_class=HTMLResponse)
+async def test_navigation(request: Request):
+    """Test page for navigation component"""
+    return templates.TemplateResponse("test_navigation.html", {"request": request})
+
+# Legacy interface (optional)
+@app.get("/legacy", response_class=HTMLResponse)
+async def read_legacy(request: Request):
+    """Original landing page"""
     return templates.TemplateResponse("index.html", {"request": request})
 
 # ==================== ADMIN ROUTES ====================

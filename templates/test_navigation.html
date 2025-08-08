@@ -1,0 +1,90 @@
+{% extends "templates/layouts/base_modern.html" %}
+
+{% block title %}Test Navigation Component{% endblock %}
+
+{% block content %}
+<section style="margin-top: 120px; padding: 2rem; min-height: 100vh;">
+    <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
+        <h1 style="color: var(--accent); font-size: 3rem; margin-bottom: 2rem;">
+            <i class="fas fa-cogs"></i> Navigation Component Test
+        </h1>
+        
+        <p style="font-size: 1.2rem; color: var(--text-secondary); margin-bottom: 3rem;">
+            This page tests the new modular navigation component with multilevel dropdown menus.
+        </p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 4rem;">
+            <div style="background: var(--surface); padding: 2rem; border-radius: 12px; border: 1px solid var(--border);">
+                <h3 style="color: var(--accent); margin-bottom: 1rem;">
+                    <i class="fas fa-puzzle-piece"></i> Component Features
+                </h3>
+                <ul style="text-align: left; color: var(--text-secondary);">
+                    <li>✅ Multilevel dropdown menus</li>
+                    <li>✅ Mobile responsive design</li>
+                    <li>✅ Smooth animations with GSAP</li>
+                    <li>✅ Reusable component architecture</li>
+                    <li>✅ Keyboard navigation support</li>
+                    <li>✅ Click outside to close</li>
+                </ul>
+            </div>
+
+            <div style="background: var(--surface); padding: 2rem; border-radius: 12px; border: 1px solid var(--border);">
+                <h3 style="color: var(--accent); margin-bottom: 1rem;">
+                    <i class="fas fa-code"></i> Technical Details
+                </h3>
+                <ul style="text-align: left; color: var(--text-secondary);">
+                    <li>📁 templates/components/navigation.html</li>
+                    <li>🎨 static/frontend/templates/components/navigation.css</li>
+                    <li>⚡ static/frontend/templates/components/navigation.js</li>
+                    <li>🔧 templates/components/navigation_include.html</li>
+                    <li>📱 Mobile hamburger menu</li>
+                    <li>🎯 Active state management</li>
+                </ul>
+            </div>
+
+            <div style="background: var(--surface); padding: 2rem; border-radius: 12px; border: 1px solid var(--border);">
+                <h3 style="color: var(--accent); margin-bottom: 1rem;">
+                    <i class="fas fa-rocket"></i> Navigation Menu Test
+                </h3>
+                <p style="text-align: left; color: var(--text-secondary);">
+                    Try the navigation menu above:
+                </p>
+                <ul style="text-align: left; color: var(--text-secondary); margin-top: 1rem;">
+                    <li>🎯 Hover over "OCR Services"</li>
+                    <li>📚 Check "Documentation" dropdown</li>
+                    <li>🛠️ Test "Tools" submenu</li>
+                    <li>📱 Resize window for mobile view</li>
+                    <li>⌨️ Use ESC key to close menus</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="margin-top: 4rem; padding: 2rem; background: rgba(136, 206, 2, 0.1); border-radius: 12px; border: 1px solid var(--accent);">
+            <h3 style="color: var(--accent); margin-bottom: 1rem;">
+                <i class="fas fa-check-circle"></i> Component Integration Success
+            </h3>
+            <p style="color: var(--text-secondary);">
+                The navigation component is now modular and can be included in any page using:
+                <code style="background: var(--surface); padding: 0.5rem; border-radius: 4px; color: var(--accent);">
+                    {% raw %}{% include 'templates/components/navigation_include.html' %}{% endraw %}
+                </code>
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block animations %}
+// Page-specific animations
+gsap.from('.grid > div', {
+    duration: 0.8,
+    y: 50,
+    opacity: 0,
+    stagger: 0.2,
+    ease: "power3.out",
+    scrollTrigger: {
+        trigger: '.grid',
+        start: 'top 80%'
+    }
+});
+{% endblock %}

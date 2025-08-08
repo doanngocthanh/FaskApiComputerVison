@@ -1,0 +1,155 @@
+<!-- Navigation Component Include -->
+<!-- Include CSS for navigation -->
+<link rel="stylesheet" href="/static/frontend/assets/css/navigation.css">
+
+<!-- Navigation HTML Structure -->
+<nav class="navbar">
+    <div class="nav-container">
+        <!-- Logo -->
+        <div class="nav-logo">
+            <a href="/" class="logo">
+                <i class="fas fa-robot"></i>
+                <span>AI Vision</span>
+            </a>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button class="mobile-menu-btn" aria-label="Toggle mobile menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <!-- Navigation Links -->
+        <ul class="nav-links">
+            <!-- Home -->
+            <li class="nav-item">
+                <a href="/" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+
+            <!-- OCR Services Dropdown -->
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle">
+                    <i class="fas fa-eye"></i>
+                    <span>OCR Services</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a href="/demo" class="dropdown-item">
+                        <i class="fas fa-id-card"></i>
+                        <span>Card Detection</span>
+                        <small>Detect Vietnamese ID cards</small>
+                    </a></li>
+                    <li><a href="/demo-new" class="dropdown-item">
+                        <i class="fas fa-camera"></i>
+                        <span>OCR Demo</span>
+                        <small>Advanced text extraction</small>
+                    </a></li>
+                    <li class="dropdown-submenu">
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-cogs"></i>
+                            <span>Advanced Features</span>
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        <ul class="dropdown-submenu-content">
+                            <li><a href="/api/v1/vietnam-citizens-card-detection" class="dropdown-item">
+                                <i class="fas fa-search"></i>
+                                <span>Card Detection API</span>
+                            </a></li>
+                            <li><a href="/api/v1/vietnam-citizens-card-mrz-extraction" class="dropdown-item">
+                                <i class="fas fa-barcode"></i>
+                                <span>MRZ Extraction</span>
+                            </a></li>
+                            <li><a href="/api/v1/vietnam-citizens-card-mrz-parser" class="dropdown-item">
+                                <i class="fas fa-file-text"></i>
+                                <span>MRZ Parser</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- API Documentation Dropdown -->
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle">
+                    <i class="fas fa-book"></i>
+                    <span>Documentation</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a href="/docs" class="dropdown-item">
+                        <i class="fas fa-file-code"></i>
+                        <span>API Docs (Swagger)</span>
+                        <small>Interactive API documentation</small>
+                    </a></li>
+                    <li><a href="/docs-modern" class="dropdown-item">
+                        <i class="fas fa-book-open"></i>
+                        <span>Modern Docs</span>
+                        <small>Enhanced documentation</small>
+                    </a></li>
+                    <li><a href="/redoc" class="dropdown-item">
+                        <i class="fas fa-file-alt"></i>
+                        <span>ReDoc</span>
+                        <small>Alternative API docs</small>
+                    </a></li>
+                </ul>
+            </li>
+
+            <!-- Tools Dropdown -->
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle">
+                    <i class="fas fa-tools"></i>
+                    <span>Tools</span>
+                    <i class="fas fa-chevron-down"></i>
+                </a>
+                <ul class="dropdown-menu">
+                    <li><a href="/monitoring" class="dropdown-item">
+                        <i class="fas fa-chart-line"></i>
+                        <span>System Monitoring</span>
+                        <small>Server health & metrics</small>
+                    </a></li>
+                    <li><a href="/config" class="dropdown-item">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>Configuration</span>
+                        <small>System settings</small>
+                    </a></li>
+                    <li class="dropdown-submenu">
+                        <a href="#" class="dropdown-item">
+                            <i class="fas fa-download"></i>
+                            <span>Downloads</span>
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        <ul class="dropdown-submenu-content">
+                            <li><a href="#" class="dropdown-item">
+                                <i class="fas fa-file-pdf"></i>
+                                <span>PDF Reports</span>
+                            </a></li>
+                            <li><a href="#" class="dropdown-item">
+                                <i class="fas fa-file-excel"></i>
+                                <span>Excel Data</span>
+                            </a></li>
+                            <li><a href="#" class="dropdown-item">
+                                <i class="fas fa-file-archive"></i>
+                                <span>Sample Images</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+
+            <!-- About -->
+            <li class="nav-item">
+                <a href="/about" class="nav-link">
+                    <i class="fas fa-info-circle"></i>
+                    <span>About</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<!-- Include JavaScript for navigation -->
+<script src="/static/frontend/assets/js/navigation.js"></script>

@@ -15,7 +15,7 @@ from src.service.PaddleOCR import PaddleOCR
 from PIL import Image
 from config import PtConfig
 from src.service.CardConfigService import card_config_service
-from src.service.TextExtractor import TextExtractor
+from src.service.CardDetectionService import card_detection_service
 from difflib import SequenceMatcher
 # Response Models for better API documentation
 class CardCategory(BaseModel):
@@ -278,7 +278,6 @@ async def detect_card(file: UploadFile = File(...)):
         
         detector = YOLODetector(model_path=model_path)
         ocr_detector = YOLODetector(model_path=model_path_ocr)
-      
 
         # Detect card regions using the CCCD_OLD_NEW model
         detections = detector.detect(image)
@@ -296,7 +295,7 @@ async def detect_card(file: UploadFile = File(...)):
             if class_name:
                 detected_info_types.add(class_name.lower())
         
-        print(f"OCR detected info types: {detected_info_types}")  # Debugging
+        print(f"OCR detected info types: {detected_info_types}")
         
         # Analyze OCR features for CCCD classification
         has_portrait = "portrait" in detected_info_types
@@ -306,186 +305,33 @@ async def detect_card(file: UploadFile = File(...)):
         
         print(f"OCR Analysis - Portrait: {has_portrait}, QR: {has_qr_code}, Basic: {has_basic_info}, Address: {has_address_info}")
         
-        # Prepare response with detected regions
-        response = {
-            "detections": []
-        }
+        # Use CardDetectionService to process detections
+        file_detections, title_detected_type = card_detection_service.process_detections(
+            detections, image, file.filename or "uploaded_file"
+        )
         
-        # Map detection labels to card categories and types
-        for detection in detections:
-            # Extract detection keys for debugging/logging
-            detection_keys = list(detection.keys())
-            print(f"Detection keys: {detection_keys}")  # Debugging line
-            
-            class_name = detection.get("class_name")
-            confidence = detection.get("confidence", 0.0)
-            
-            if class_name:
-                print(f"Detected class name: {class_name}, confidence: {confidence}")  # Debugging line
-                label = class_name.lower()
-                if label =="title":
-                    #crop ra vùng chứa title
-                    x1, y1, x2, y2 = detection.get("bbox", [0, 0, 0, 0])
-                    cropped_image = image[y1:y2, x1:x2]
-                    #dùng TextExtractor để đọc
-                    text_extractor = TextExtractor()
-                    extracted_text = text_extractor.extract_from_image_en(cropped_image)
-
-                    print(f"Extracted title text: {extracted_text}")  # Debugging line
-                    # Use fuzzy matching for text similarity
-                    
-                    def text_similarity(text1, text2):
-                        return SequenceMatcher(None, text1.upper(), text2.upper()).ratio()
-                    
-                    # Define keywords and thresholds
-                    cccd_new_keywords = ["CAN CUOC", "CĂNG CƯỚC", "CĂN CƯỚC"]
-                    cccd_old_keywords = ["CONG DAN", "CÔNG DÂN", "CỘNG DÂN","CUOC CONG DAN", "CĂN CƯỚC CÔNG DÂN"]
-                    threshold = 0.7  # Similarity threshold (70%)
-                    
-                    # Check for CCCD new keywords
-                    best_similarity = 0
-                    detected_type = None
-                    
-                    for keyword in cccd_new_keywords:
-                        similarity = max([text_similarity(extracted_text, keyword) for keyword in [keyword]])
-                        if similarity > threshold and similarity > best_similarity:
-                            best_similarity = similarity
-                            detected_type = "cccd_new_front"
-                    
-                    for keyword in cccd_old_keywords:
-                        similarity = max([text_similarity(extracted_text, keyword) for keyword in [keyword]])
-                        if similarity > threshold and similarity > best_similarity:
-                            best_similarity = similarity
-                            detected_type = "cccd_qr_front"
-                    
-                    if detected_type:
-                        label = detected_type
-                        print(f"Text classification: {detected_type} (similarity: {best_similarity:.2f})")
-                if label == "cccd_qr_front":
-                    card_category = card_config_service.get_card_category_by_id(0)  # Thẻ Căn Cước Công Dân (Cũ)
-                    card_type = card_config_service.get_card_type_by_id(0)  # Mặt Trước
-                elif label == "cccd_qr_back":
-                    card_category = card_config_service.get_card_category_by_id(0)  # Thẻ Căn Cước Công Dân (Cũ)
-                    card_type = card_config_service.get_card_type_by_id(1)  # Mặt Sau
-                elif label == "cccd_new_front":
-                    card_category = card_config_service.get_card_category_by_id(5)  # Thẻ Căn Cước Công Dân Mới
-                    card_type = card_config_service.get_card_type_by_id(0)  # Mặt Trước
-                elif label == "cccd_new_back":
-                    card_category = card_config_service.get_card_category_by_id(5)  # Thẻ Căn Cước Công Dân Mới
-                    card_type = card_config_service.get_card_type_by_id(1)  # Mặt Sau
-                elif label == "gplx_front":
-                    card_category = card_config_service.get_card_category_by_id(1)  # Giấy Phép Lái Xe
-                    card_type = card_config_service.get_card_type_by_id(0)  # Mặt Trước
-                elif label == "gplx_back":
-                    card_category = card_config_service.get_card_category_by_id(1)  # Giấy Phép Lái Xe
-                    card_type = card_config_service.get_card_type_by_id(1)  # Mặt Sau
-                else:
-                    # Unknown or unrecognized label
-                    card_category = {"id": -1, "name": "Unknown", "nameEn": "Unknown"}
-                    card_type = {"id": -1, "name": "Unknown", "nameEn": "Unknown"}
-                    label = "unknown"
-            else:
-                # No class name found
-                card_category = {"id": -1, "name": "Unknown", "nameEn": "Unknown"}
-                card_type = {"id": -1, "name": "Unknown", "nameEn": "Unknown"}
-                label = "unknown"
-                confidence = 0.0
-            
-            # Create detailed detection result with confidence
-            detection_result = {
-                "confidence": confidence,
-                "detected_label": label,
-                "card_category": card_category,
-                "card_type": card_type,
-                "is_valid_card": label in ["cccd_qr_front", "cccd_qr_back", "cccd_new_front", "cccd_new_back", "gplx_front", "gplx_back"],
-                "ocr_features": {
-                    "has_portrait": has_portrait,
-                    "has_qr_code": has_qr_code,
-                    "has_basic_info": has_basic_info,
-                    "has_address_info": has_address_info,
-                    "detected_info_types": list(detected_info_types)
-                }
+        # Add OCR features to all detections
+        for detection in file_detections:
+            detection["ocr_features"] = {
+                "has_portrait": has_portrait,
+                "has_qr_code": has_qr_code,
+                "has_basic_info": has_basic_info,
+                "has_address_info": has_address_info,
+                "detected_info_types": list(detected_info_types)
             }
-            
-            response["detections"].append(detection_result)
         
-        # Sort detections by confidence (highest first) và áp dụng logic chọn detection
-        if response["detections"]:
-            response["detections"].sort(key=lambda x: x["confidence"], reverse=True)
-            
-            # Log all detections for debugging
-            print(f"All detections found:")
-            for i, det in enumerate(response["detections"]):
-                print(f"  {i+1}: {det['detected_label']} - confidence: {det['confidence']:.3f}")
-            
-            # Áp dụng logic chọn detection thông minh
-            best_detection = response["detections"][0]
-            
-            # Nếu có nhiều detections và confidence gần nhau, áp dụng rules với OCR
-            if len(response["detections"]) > 1:
-                first = response["detections"][0]
-                second = response["detections"][1]
-                confidence_diff = first["confidence"] - second["confidence"]
-                
-                print(f"Confidence difference: {confidence_diff:.3f}")
-                
-                # Nếu chênh lệch confidence nhỏ (< 0.1), áp dụng OCR-based rules
-                if confidence_diff < 0.1:
-                    print("Applying OCR-based classification rules...")
-                    
-                    # Rule 1: Nếu có QR code trong OCR → Ưu tiên CCCD cũ
-                    if has_qr_code:
-                        for det in response["detections"]:
-                            if det["detected_label"] in ["cccd_qr_front", "cccd_qr_back"]:
-                                best_detection = det
-                                print(f"OCR Rule: QR detected → Switched to QR CCCD: {det['detected_label']}")
-                                break
-                    
-                    # Rule 2: Nếu có portrait + basic info nhưng KHÔNG có QR → Ưu tiên CCCD mới hoặc GPLX
-                    elif has_portrait and has_basic_info and not has_qr_code:
-                        # Ưu tiên CCCD mới trước, sau đó GPLX
-                        for det in response["detections"]:
-                            if det["detected_label"] in ["cccd_new_front", "cccd_new_back"]:
-                                best_detection = det
-                                print(f"OCR Rule: Portrait+Basic but no QR → Switched to New CCCD: {det['detected_label']}")
-                                break
-                        else:
-                            # Nếu không có CCCD mới, thử GPLX
-                            for det in response["detections"]:
-                                if det["detected_label"] in ["gplx_front", "gplx_back"]:
-                                    best_detection = det
-                                    print(f"OCR Rule: Portrait+Basic but no QR → Switched to GPLX: {det['detected_label']}")
-                                    break
-                    
-                    # Rule 3: Nếu chỉ có basic info mà không có portrait và QR → Có thể là GPLX mặt sau
-                    elif has_basic_info and not has_portrait and not has_qr_code:
-                        for det in response["detections"]:
-                            if det["detected_label"] == "gplx_back":
-                                best_detection = det
-                                print(f"OCR Rule: Basic info only → Switched to GPLX back: {det['detected_label']}")
-                                break
-                    
-                    # Rule 4: Nếu chỉ có QR mà không có portrait → Mặt sau
-                    elif has_qr_code and not has_portrait:
-                        for det in response["detections"]:
-                            if "back" in det["detected_label"]:
-                                best_detection = det
-                                print(f"OCR Rule: QR only → Switched to back side: {det['detected_label']}")
-                                break
-                    
-                    # Rule 5: Fallback - ưu tiên CCCD cũ vì model được train cho CCCD cũ
-                    else:
-                        for det in response["detections"]:
-                            if det["detected_label"] in ["cccd_qr_front", "cccd_qr_back"]:
-                                best_detection = det
-                                print(f"OCR Rule: Fallback → Switched to QR CCCD: {det['detected_label']}")
-                                break
-            
-            print(f"Final best detection: {best_detection['detected_label']} with confidence {best_detection['confidence']:.3f}")
-            
-            response["detections"] = [best_detection]
+        # Select best detection using service
+        best_detection = card_detection_service.select_best_detection(
+            file_detections, title_detected_type, detected_info_types, file.filename or "uploaded_file"
+        )
         
-        return response
+        if not best_detection:
+            return {"message": "No valid detections found.", "detections": []}
+        
+        # Return only the best detection
+        return {
+            "detections": [best_detection]
+        }
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

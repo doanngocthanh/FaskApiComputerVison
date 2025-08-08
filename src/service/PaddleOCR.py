@@ -89,6 +89,16 @@ class PaddleOCR:
         else:
             points = text_regions
         
+        # Convert points to numpy arrays to avoid list subtraction errors
+        import numpy as np
+        converted_points = []
+        for point_set in points:
+            if isinstance(point_set, list):
+                converted_points.append(np.array(point_set, dtype=np.float32))
+            else:
+                converted_points.append(point_set.astype(np.float32))
+        points = converted_points
+        
         # Cắt ảnh theo vùng text
         cropped_images = [util.crop_image(frame, x) for x in points]
         
